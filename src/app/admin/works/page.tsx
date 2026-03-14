@@ -10,7 +10,7 @@ type Work = {
   work_url: string | null;
   published_at: string | null;
   is_visible: boolean;
-  studios?: { name: string } | null;
+  studios?: { name: string }[] | null;
 };
 
 export default function WorksAdminPage() {
@@ -24,7 +24,7 @@ export default function WorksAdminPage() {
       .select("id,title,thumbnail_url,work_url,published_at,is_visible, studios(name)")
       .order("published_at", { ascending: false });
 
-    setWorks((data as Work[]) || []);
+    setWorks(((data ?? []) as Work[]) || []);
   }
 
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function WorksAdminPage() {
                 {work.title}
               </td>
               <td className="border-b border-[var(--stroke)] py-2">
-                {work.studios?.name || "-"}
+                {work.studios?.[0]?.name || "-"}
               </td>
               <td className="border-b border-[var(--stroke)] py-2">
                 {work.published_at
