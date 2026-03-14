@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  --bg-start: #f5f5f5;
+  --bg-end: #ffffff;
+  --ink: #111111;
+  --muted: #666666;
+  --card: #ffffff;
+  --stroke: #e5e5e5;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--bg-start), var(--bg-end));
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+}
