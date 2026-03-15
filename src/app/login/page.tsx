@@ -67,7 +67,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg border border-black px-4 py-2 text-sm"
+          className="btn w-full"
         >
           {loading ? "登录中..." : "登录"}
         </button>

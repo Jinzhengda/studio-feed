@@ -1,12 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
+import WorkImage from "@/components/WorkImage";
+
+export const revalidate = 0;
 
 type WorkCard = {
   id: string;
   title: string;
   studio: string;
   thumbnail_url: string;
+  studio_cover_url?: string | null;
   work_url: string;
   published_at: string;
+  created_at: string;
+  first_seen_at: string;
 };
 
 const demoSizes = [
@@ -39,21 +45,29 @@ export default async function HomePage() {
 
   const { data } = await supabase
     .from("works")
-    .select("id,title,thumbnail_url,work_url,published_at, studios(name)")
+    .select(
+      "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios(name, cover_url)"
+    )
     .eq("is_visible", true)
-    .order("published_at", { ascending: false })
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("first_seen_at", { ascending: false })
     .limit(60);
 
   const works: WorkCard[] =
-    data?.map((w: any) => ({
-      id: w.id,
-      title: w.title,
-      studio: w.studios?.name || "Unknown Studio",
-      thumbnail_url:
-        w.thumbnail_url || "https://picsum.photos/seed/fallback/800/600",
-      work_url: w.work_url || "#",
-      published_at: w.published_at || new Date().toISOString(),
-    })) || demoWorks;
+    data?.map((w: any) => {
+      const studio = Array.isArray(w.studios) ? w.studios[0] : w.studios;
+      return {
+        id: w.id,
+        title: w.title,
+        studio: studio?.name || "Unknown Studio",
+        thumbnail_url: w.thumbnail_url || "",
+        studio_cover_url: studio?.cover_url || "",
+        work_url: w.work_url || "#",
+        published_at: w.published_at || new Date().toISOString(),
+        created_at: w.created_at || new Date().toISOString(),
+        first_seen_at: w.first_seen_at || new Date().toISOString(),
+      };
+    }) || demoWorks;
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-12">
@@ -68,18 +82,21 @@ export default async function HomePage() {
             key={work.id}
             className="group mb-6 inline-block w-full break-inside-avoid overflow-hidden border border-[var(--stroke)] bg-[var(--card)] transition-all duration-200 hover:-translate-y-1 hover:shadow-sm"
           >
-            <img
+            <WorkImage
               src={work.thumbnail_url}
+              fallback={work.studio_cover_url}
               alt={work.title}
               className="block w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
             <div className="p-4">
               <div className="text-xs text-[var(--muted)]">
-                {new Date(work.published_at).toLocaleDateString()}
+                {work.published_at
+                  ? new Date(work.published_at).toLocaleDateString()
+                  : new Date(work.first_seen_at).toLocaleDateString()}
               </div>
               <h3 className="mt-2 text-lg font-medium">{work.title}</h3>
               <p className="mt-1 text-sm text-[var(--muted)]">{work.studio}</p>
-              <a href={work.work_url} className="mt-3 inline-block text-sm underline">
+              <a href={work.work_url} className="btn-text mt-3">
                 查看作品
               </a>
             </div>

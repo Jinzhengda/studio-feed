@@ -15,10 +15,7 @@ export default function AuthButtons({ isAuthed }: { isAuthed: boolean }) {
 
   if (!isAuthed) {
     return (
-      <Link
-        href="/login"
-        className="rounded-full border border-black px-4 py-2 text-sm"
-      >
+      <Link href="/login" className="btn">
         登录
       </Link>
     );
@@ -26,15 +23,12 @@ export default function AuthButtons({ isAuthed }: { isAuthed: boolean }) {
 
   return (
     <div className="flex items-center gap-3">
-      <Link
-        href="/admin/studios"
-        className="rounded-full border border-black px-4 py-2 text-sm"
-      >
+      <Link href="/admin/studios" className="btn">
         Admin
       </Link>
       <button
         onClick={handleLogout}
-        className="rounded-full border border-black px-4 py-2 text-sm"
+        className="btn"
       >
         登出
       </button>

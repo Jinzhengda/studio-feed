@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import CoverUploader from "@/components/CoverUploader";
 
 type Studio = {
   id: string;
   name: string;
   website_url: string | null;
   feed_url: string | null;
+  cover_url: string | null;
   location: string | null;
   tags: string | null;
   is_active: boolean;
@@ -18,6 +20,7 @@ const emptyForm = {
   name: "",
   website_url: "",
   feed_url: "",
+  cover_url: "",
   location: "",
   tags: "",
   is_active: true,
@@ -30,6 +33,27 @@ export default function StudiosAdminPage() {
   const [form, setForm] = useState({ ...emptyForm });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState("");
+
+  function showToast(text: string) {
+    setToast(text);
+    window.setTimeout(() => setToast(""), 2000);
+  }
+
+  async function saveCoverUrl(url: string) {
+    setForm((prev) => ({ ...prev, cover_url: url }));
+    if (!form.id) return;
+    const { error } = await supabase
+      .from("studios")
+      .update({ cover_url: url })
+      .eq("id", form.id);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    showToast("封面图已保存");
+    loadStudios();
+  }
 
   async function loadStudios() {
     setLoading(true);
@@ -54,6 +78,7 @@ export default function StudiosAdminPage() {
       name: form.name,
       website_url: form.website_url || null,
       feed_url: form.feed_url || null,
+      cover_url: form.cover_url || null,
       location: form.location || null,
       tags: form.tags || null,
       is_active: form.is_active,
@@ -102,11 +127,16 @@ export default function StudiosAdminPage() {
       setMessage("刷新失败，请检查登录状态");
       return;
     }
-    setMessage("已刷新示例数据");
+    showToast("已刷新作品数据");
   }
 
   return (
     <div>
+      {toast && (
+        <div className="fixed right-6 top-6 z-50 rounded-full border border-black/20 bg-white px-4 py-2 text-sm shadow-sm">
+          {toast}
+        </div>
+      )}
       <h1 className="text-2xl font-semibold">工作室管理</h1>
 
       <form
@@ -142,6 +172,25 @@ export default function StudiosAdminPage() {
         </div>
 
         <div>
+          <label className="text-sm">封面图 URL（抓取失败时用）</label>
+          <input
+            className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
+            value={form.cover_url}
+            onChange={(e) => setForm({ ...form, cover_url: e.target.value })}
+            placeholder="https://example.com/cover.jpg"
+          />
+          <CoverUploader
+            value={form.cover_url}
+            onChange={(url) => saveCoverUrl(url)}
+          />
+          {!form.id && (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              新建工作室时，上传后请点击“新增工作室”保存。
+            </p>
+          )}
+        </div>
+
+        <div>
           <label className="text-sm">位置</label>
           <input
             className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
@@ -171,20 +220,20 @@ export default function StudiosAdminPage() {
         <div className="flex gap-3">
           <button
             type="submit"
-            className="rounded-lg border border-black px-4 py-2 text-sm"
+            className="btn"
           >
             {form.id ? "保存" : "新增工作室"}
           </button>
           <button
             type="button"
-            className="rounded-lg border border-black px-4 py-2 text-sm"
+            className="btn"
             onClick={() => setForm({ ...emptyForm })}
           >
             清空表单
           </button>
           <button
             type="button"
-            className="rounded-lg border border-black px-4 py-2 text-sm"
+            className="btn"
             onClick={refreshDemo}
           >
             刷新示例数据
@@ -205,6 +254,7 @@ export default function StudiosAdminPage() {
               <tr className="text-left">
                 <th className="border-b border-[var(--stroke)] py-2">名称</th>
                 <th className="border-b border-[var(--stroke)] py-2">官网</th>
+                <th className="border-b border-[var(--stroke)] py-2">封面</th>
                 <th className="border-b border-[var(--stroke)] py-2">启用</th>
                 <th className="border-b border-[var(--stroke)] py-2">操作</th>
               </tr>
@@ -219,18 +269,22 @@ export default function StudiosAdminPage() {
                     {studio.website_url || "-"}
                   </td>
                   <td className="border-b border-[var(--stroke)] py-2">
+                    {studio.cover_url ? "已设置" : "未设置"}
+                  </td>
+                  <td className="border-b border-[var(--stroke)] py-2">
                     {studio.is_active ? "是" : "否"}
                   </td>
                   <td className="border-b border-[var(--stroke)] py-2">
                     <div className="flex gap-2">
                       <button
-                        className="text-sm underline"
+                        className="btn-text"
                         onClick={() =>
                           setForm({
                             id: studio.id,
                             name: studio.name,
                             website_url: studio.website_url || "",
                             feed_url: studio.feed_url || "",
+                            cover_url: studio.cover_url || "",
                             location: studio.location || "",
                             tags: studio.tags || "",
                             is_active: studio.is_active,
@@ -240,7 +294,7 @@ export default function StudiosAdminPage() {
                         编辑
                       </button>
                       <button
-                        className="text-sm underline"
+                        className="btn-text"
                         onClick={() => handleDelete(studio.id)}
                       >
                         删除
@@ -251,7 +305,7 @@ export default function StudiosAdminPage() {
               ))}
               {studios.length === 0 && (
                 <tr>
-                  <td className="py-4 text-sm text-[var(--muted)]" colSpan={4}>
+                  <td className="py-4 text-sm text-[var(--muted)]" colSpan={5}>
                     暂无工作室
                   </td>
                 </tr>

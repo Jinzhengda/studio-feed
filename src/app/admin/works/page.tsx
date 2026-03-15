@@ -90,13 +90,13 @@ export default function WorksAdminPage() {
               <td className="border-b border-[var(--stroke)] py-2">
                 <div className="flex gap-2">
                   <button
-                    className="text-sm underline"
+                    className="btn-text"
                     onClick={() => toggleVisible(work)}
                   >
                     切换可见性
                   </button>
                   <button
-                    className="text-sm underline"
+                    className="btn-text"
                     onClick={() => handleDelete(work.id)}
                   >
                     删除
