@@ -166,20 +166,43 @@ async function scrapeUDL(url: string): Promise<ScrapedWork[]> {
   const html = await fetchHtml("https://u-d-l.com/");
   const $ = load(html);
   const items: ScrapedWork[] = [];
-  $('a[href^="/work/"]').each((_, el) => {
+
+  // 找到所有作品链接
+  $('a.item[href^="/work/"]').each((_, el) => {
     const href = $(el).attr("href") || "";
-    if (href === "/work/") return;
-    if (!/^\/work\/[^/?#]+\/?$/.test(href)) return;
-    const title = $(el).text().replace(/\s+/g, " ").trim();
-    if (!title) return;
-    if (IGNORE_TITLES.has(title.toLowerCase())) return;
-    const workUrl = normalizeUrl(toAbsolute(url, href));
+    if (!href || href === "/work/") return;
+
+    // 提取标题
+    const titleEl = $(el).find(".item_title span").first();
+    const title = titleEl.text().trim();
+    if (!title || IGNORE_TITLES.has(title.toLowerCase())) return;
+
+    const workUrl = normalizeUrl(toAbsolute("https://u-d-l.com/", href));
+
+    // 从 bg-set 属性中提取图片 URL
+    const imageWrap = $(el).find(".image_wrap");
+    const bgSet = imageWrap.attr("bg-set") || "";
+    let thumbnailUrl = placeholderImage(workUrl);
+
+    if (bgSet) {
+      // bg-set 格式: "url1.jpg,url2.jpg 2x" - 取第一个不带空格的 URL
+      const urls = bgSet.split(",");
+      for (const urlPart of urls) {
+        const cleanUrl = urlPart.trim().split(" ")[0];
+        if (cleanUrl && cleanUrl.startsWith("//")) {
+          thumbnailUrl = "https:" + cleanUrl;
+          break;
+        }
+      }
+    }
+
     items.push({
       title,
       workUrl,
-      thumbnailUrl: placeholderImage(workUrl),
+      thumbnailUrl,
     });
   });
+
   return items.slice(0, 12);
 }
 
@@ -225,11 +248,197 @@ async function scrapePortoRocha(url: string): Promise<ScrapedWork[]> {
   return items.slice(0, 12);
 }
 
+async function scrapeGeneric(url: string): Promise<ScrapedWork[]> {
+  const html = await fetchHtml(url);
+  const $ = load(html);
+  const items: ScrapedWork[] = [];
+  const baseUrl = new URL(url).origin;
+
+  // 尝试多种常见的作品列表选择器
+  const selectors = [
+    '[data-behavior="projectCard"] a',
+    '[data-project] a',
+    '[data-work] a',
+    'a[href*="/work/"]',
+    'a[href*="/project"]',
+    'a[href*="/projects/"]',
+    'a[href*="/portfolio"]',
+    'a[href*="/case"]',
+    '.work a',
+    '.project a',
+    '.portfolio a',
+    '.case-study a',
+    'article a',
+    '.grid a',
+    '.item a',
+    '[class*="work"] a',
+    '[class*="project"] a'
+  ];
+
+  const foundLinks = new Set<string>();
+
+  for (const selector of selectors) {
+    $(selector).each((_, el) => {
+      const $link = $(el);
+      let href = $link.attr("href") || "";
+
+      // 如果链接本身没有 href，尝试找父元素
+      if (!href) {
+        href = $link.closest("a").attr("href") || "";
+      }
+
+      if (!href || href === "#" || href === "/" || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+
+      // 跳过导航链接
+      const lowerHref = href.toLowerCase();
+      if (lowerHref.includes("/about") || lowerHref.includes("/contact") ||
+          lowerHref.includes("/team") || lowerHref.includes("/news") ||
+          lowerHref.includes("/archive")) return;
+
+      const fullUrl = toAbsolute(url, href);
+      const normalized = normalizeUrl(fullUrl);
+
+      // 避免重复
+      if (foundLinks.has(normalized)) return;
+
+      // 允许同域名或子路径
+      if (!normalized.startsWith(baseUrl) && !normalized.startsWith(url)) return;
+
+      // 提取标题
+      let title = $link.attr("title") || $link.attr("alt") || $link.attr("aria-label") || "";
+      if (!title) {
+        title = $link.find("h1, h2, h3, h4, h5, .title, .name, [class*='title'], [class*='name']").first().text().trim();
+      }
+      if (!title) {
+        const $parent = $link.closest('[data-behavior="projectCard"], [data-project], article, .item, .work, .project');
+        title = $parent.find("h1, h2, h3, h4, .title").first().text().trim();
+      }
+      if (!title) {
+        title = $link.text().replace(/\s+/g, " ").trim();
+      }
+
+      if (!title || title.length < 2 || title.length > 200) return;
+      if (IGNORE_TITLES.has(title.toLowerCase())) return;
+
+      // 提取图片
+      let thumbnailUrl = placeholderImage(normalized);
+
+      // 查找图片
+      let $img = $link.find("img").first();
+      if (!$img.length) {
+        const $parent = $link.closest('[data-behavior="projectCard"], [data-project], article, .item');
+        $img = $parent.find("img").first();
+      }
+
+      if ($img.length) {
+        const src = $img.attr("src") || $img.attr("data-src") || $img.attr("data-lazy") || $img.attr("data-original");
+        if (src) {
+          thumbnailUrl = toAbsolute(url, src);
+        }
+      }
+
+      // 检查背景图
+      if (thumbnailUrl === placeholderImage(normalized)) {
+        const $bgEl = $link.find("[style*='background-image']").first();
+        if ($bgEl.length) {
+          const style = $bgEl.attr("style") || "";
+          const match = style.match(/url\(['"]?([^'"]+)['"]?\)/);
+          if (match && match[1]) {
+            thumbnailUrl = toAbsolute(url, match[1]);
+          }
+        }
+      }
+
+      foundLinks.add(normalized);
+      items.push({
+        title,
+        workUrl: normalized,
+        thumbnailUrl,
+      });
+    });
+
+    if (items.length >= 12) break;
+  }
+
+  return items.slice(0, 12);
+}
+
+async function scrapePentagram(url: string): Promise<ScrapedWork[]> {
+  const html = await fetchHtml(url);
+  const $ = load(html);
+  const items: ScrapedWork[] = [];
+
+  $('[data-behavior="projectCard"]').each((_, el) => {
+    const $card = $(el);
+    const $link = $card.find("a").first();
+    const href = $link.attr("href") || "";
+
+    if (!href) return;
+
+    const workUrl = normalizeUrl(toAbsolute(url, href));
+
+    // 提取标题
+    let title = $card.find("h2, h3, .title, [class*='title']").first().text().trim();
+    if (!title) {
+      title = $link.attr("title") || $link.text().trim();
+    }
+
+    if (!title || IGNORE_TITLES.has(title.toLowerCase())) return;
+
+    // 提取图片 - Pentagram 使用多种方式
+    let thumbnailUrl = placeholderImage(workUrl);
+
+    // 方法1: 查找 img 标签
+    const $img = $card.find("img").first();
+    if ($img.length) {
+      const src = $img.attr("src") || $img.attr("data-src") || $img.attr("srcset")?.split(" ")[0];
+      if (src) {
+        thumbnailUrl = toAbsolute(url, src);
+      }
+    }
+
+    // 方法2: 查找 picture 标签
+    if (thumbnailUrl === placeholderImage(workUrl)) {
+      const $picture = $card.find("picture source").first();
+      if ($picture.length) {
+        const srcset = $picture.attr("srcset");
+        if (srcset) {
+          thumbnailUrl = toAbsolute(url, srcset.split(" ")[0]);
+        }
+      }
+    }
+
+    // 方法3: 查找背景图
+    if (thumbnailUrl === placeholderImage(workUrl)) {
+      const $bgEl = $card.find("[style*='background']").first();
+      if ($bgEl.length) {
+        const style = $bgEl.attr("style") || "";
+        const match = style.match(/url\(['"]?([^'"]+)['"]?\)/);
+        if (match && match[1]) {
+          thumbnailUrl = toAbsolute(url, match[1]);
+        }
+      }
+    }
+
+    items.push({
+      title,
+      workUrl,
+      thumbnailUrl,
+    });
+  });
+
+  return items.slice(0, 12);
+}
+
 async function scrapeByUrl(url: string): Promise<ScrapedWork[]> {
-  if (url.includes("u-d-l.com/work")) return scrapeUDL(url);
+  // 优先使用专门的抓取逻辑
+  if (url.includes("u-d-l.com")) return scrapeUDL(url);
   if (url.includes("ndc.co.jp")) return scrapeNDC(url);
   if (url.includes("portorocha.com")) return scrapePortoRocha(url);
-  return [];
+  if (url.includes("pentagram.com")) return scrapePentagram(url);
+
+  // 使用通用抓取
+  return scrapeGeneric(url);
 }
 
 export async function POST() {

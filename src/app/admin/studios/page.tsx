@@ -231,20 +231,22 @@ export default function StudiosAdminPage() {
           >
             清空表单
           </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={refreshDemo}
-          >
-            刷新示例数据
-          </button>
         </div>
 
         {message && <p className="text-sm text-[var(--muted)]">{message}</p>}
       </form>
 
       <div className="mt-8">
-        <h2 className="text-lg font-medium">工作室列表</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium">工作室列表</h2>
+          <button
+            type="button"
+            className="btn"
+            onClick={refreshDemo}
+          >
+            刷新数据
+          </button>
+        </div>
 
         {loading ? (
           <p className="mt-4 text-sm text-[var(--muted)]">加载中...</p>

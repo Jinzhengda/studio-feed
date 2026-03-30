@@ -17,13 +17,22 @@ body {
 body {
   color: var(--ink);
   background: #ffffff;
-  font-family: var(--font-sans);
+  font-family: Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-weight: 400;
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--font-serif);
+  font-family: Optima, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", serif;
+  font-weight: 500;
+}
+
+strong,
+b,
+.font-medium,
+.font-semibold {
+  font-weight: 500;
 }
 
 @layer components {
@@ -32,5 +41,8 @@ h3 {
   }
   .btn-text {
     @apply inline-flex items-center gap-1 text-sm underline-offset-4 transition-all duration-150 hover:underline active:translate-y-px;
+  }
+  .group:hover .group-hover\:scale-103 {
+    transform: scale(1.03);
   }
 }

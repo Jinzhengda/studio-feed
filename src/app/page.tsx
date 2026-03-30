@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import WorkImage from "@/components/WorkImage";
+import MasonryGrid from "@/components/MasonryGrid";
 
 export const revalidate = 0;
 
@@ -37,11 +37,17 @@ const demoWorks: WorkCard[] = Array.from({ length: 10 }).map((_, i) => {
     thumbnail_url: `https://picsum.photos/seed/demo-${i}/${w}/${h}`,
     work_url: "#",
     published_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    first_seen_at: new Date().toISOString(),
   };
 });
 
 export default async function HomePage() {
   const supabase = await createClient();
+
+  // 计算半年前的日期
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
   const { data } = await supabase
     .from("works")
@@ -49,9 +55,8 @@ export default async function HomePage() {
       "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios(name, cover_url)"
     )
     .eq("is_visible", true)
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .order("first_seen_at", { ascending: false })
-    .limit(60);
+    .gte("first_seen_at", sixMonthsAgo.toISOString())
+    .order("first_seen_at", { ascending: false });
 
   const works: WorkCard[] =
     data?.map((w: any) => {
@@ -69,40 +74,14 @@ export default async function HomePage() {
       };
     }) || demoWorks;
 
-  return (
-    <section className="mx-auto max-w-6xl px-6 py-12">
-      <h1 className="text-3xl font-semibold">最新作品</h1>
-      <p className="mt-2 text-[var(--muted)]">
-        收集设计工作室最新作品的展示墙
-      </p>
+  // 去重：根据 work_url 去重
+  const uniqueWorks = works.filter((work, index, self) =>
+    index === self.findIndex((w) => w.work_url === work.work_url)
+  );
 
-      <div className="mt-8 columns-1 gap-6 sm:columns-2 lg:columns-3 xl:columns-4">
-        {works.map((work) => (
-          <article
-            key={work.id}
-            className="group mb-6 inline-block w-full break-inside-avoid overflow-hidden border border-[var(--stroke)] bg-[var(--card)] transition-all duration-200 hover:-translate-y-1 hover:shadow-sm"
-          >
-            <WorkImage
-              src={work.thumbnail_url}
-              fallback={work.studio_cover_url}
-              alt={work.title}
-              className="block w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-            />
-            <div className="p-4">
-              <div className="text-xs text-[var(--muted)]">
-                {work.published_at
-                  ? new Date(work.published_at).toLocaleDateString()
-                  : new Date(work.first_seen_at).toLocaleDateString()}
-              </div>
-              <h3 className="mt-2 text-lg font-medium">{work.title}</h3>
-              <p className="mt-1 text-sm text-[var(--muted)]">{work.studio}</p>
-              <a href={work.work_url} className="btn-text mt-3">
-                查看作品
-              </a>
-            </div>
-          </article>
-        ))}
-      </div>
+  return (
+    <section className="mx-auto max-w-6xl px-3 py-2 sm:px-6 sm:py-12">
+      <MasonryGrid works={uniqueWorks} />
     </section>
   );
 }

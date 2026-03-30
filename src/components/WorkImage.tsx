@@ -23,16 +23,63 @@ export default function WorkImage({
   alt: string;
   className?: string;
 }) {
-  const isPlaceholder =
-    !!src && src.startsWith("data:image/svg+xml");
-  const initial = isPlaceholder && fallback ? fallback : src || fallback || FALLBACK_SVG;
-  const [current, setCurrent] = useState(initial);
+  const [current, setCurrent] = useState<string>(FALLBACK_SVG);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const nextIsPlaceholder = !!src && src.startsWith("data:image/svg+xml");
-    setCurrent(
-      nextIsPlaceholder && fallback ? fallback : src || fallback || FALLBACK_SVG
-    );
+    setLoading(true);
+
+    const isPlaceholder = !!src && src.startsWith("data:image/svg+xml");
+    const imageUrl = isPlaceholder && fallback ? fallback : src || fallback || FALLBACK_SVG;
+
+    if (!imageUrl || imageUrl === FALLBACK_SVG || imageUrl.startsWith("data:image/svg+xml")) {
+      setCurrent(imageUrl);
+      setLoading(false);
+      return;
+    }
+
+    // 添加超时机制，避免无限加载
+    const timeout = setTimeout(() => {
+      setCurrent(fallback || FALLBACK_SVG);
+      setLoading(false);
+    }, 10000); // 10秒超时
+
+    const img = new Image();
+    img.onload = () => {
+      clearTimeout(timeout);
+      setCurrent(imageUrl);
+      setLoading(false);
+    };
+    img.onerror = () => {
+      clearTimeout(timeout);
+      if (fallback && imageUrl !== fallback && !fallback.startsWith("data:image/svg+xml")) {
+        const fallbackImg = new Image();
+        const fallbackTimeout = setTimeout(() => {
+          setCurrent(FALLBACK_SVG);
+          setLoading(false);
+        }, 5000);
+
+        fallbackImg.onload = () => {
+          clearTimeout(fallbackTimeout);
+          setCurrent(fallback);
+          setLoading(false);
+        };
+        fallbackImg.onerror = () => {
+          clearTimeout(fallbackTimeout);
+          setCurrent(FALLBACK_SVG);
+          setLoading(false);
+        };
+        fallbackImg.src = fallback;
+      } else {
+        setCurrent(FALLBACK_SVG);
+        setLoading(false);
+      }
+    };
+    img.src = imageUrl;
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, [src, fallback]);
 
   return (
@@ -40,11 +87,7 @@ export default function WorkImage({
       src={current}
       alt={alt}
       className={className}
-      onError={() => {
-        if (current !== (fallback || FALLBACK_SVG)) {
-          setCurrent(fallback || FALLBACK_SVG);
-        }
-      }}
+      style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.3s" }}
     />
   );
 }

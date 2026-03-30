@@ -1,11 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
-import { Work_Sans, Playfair_Display } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
-import AuthButtons from "@/components/AuthButtons";
-
-const workSans = Work_Sans({ subsets: ["latin"], variable: "--font-sans" });
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-serif" });
+import MobileMenu from "@/components/MobileMenu";
 
 export const metadata = {
   title: "studio-feed",
@@ -20,21 +16,37 @@ export default async function RootLayout({
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
 
+  let avatarUrl = null;
+  if (data.user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", data.user.id)
+      .single();
+    avatarUrl = profile?.avatar_url;
+  }
+
   return (
     <html lang="zh">
-      <body className={`${workSans.variable} ${playfair.variable}`}>
+      <body>
         <div className="min-h-screen flex flex-col">
           <header className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-white/70 backdrop-blur">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
               <Link href="/" className="text-lg font-semibold">
                 studio-feed
               </Link>
-              <nav className="flex items-center gap-6 text-sm">
-                <Link href="/">Home</Link>
-                <Link href="/about">About</Link>
-                <Link href="/contact">Contact</Link>
-              </nav>
-              <AuthButtons isAuthed={!!data.user} />
+              <div className="flex items-center gap-6">
+                <nav className="hidden md:flex items-center gap-6 text-sm">
+                  <Link href="/about">About</Link>
+                  <Link href="/contact">Contact</Link>
+                </nav>
+                <div className="md:hidden">
+                  <MobileMenu isAuthed={!!data.user} avatarUrl={avatarUrl} showNavLinks={true} />
+                </div>
+                <div className="hidden md:block">
+                  <MobileMenu isAuthed={!!data.user} avatarUrl={avatarUrl} showNavLinks={false} />
+                </div>
+              </div>
             </div>
           </header>
 
