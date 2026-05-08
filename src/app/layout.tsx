@@ -18,16 +18,23 @@ export default async function RootLayout({
 
   let avatarUrl = null;
   if (data.user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("avatar_url")
-      .eq("id", data.user.id)
-      .single();
-    avatarUrl = profile?.avatar_url;
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", data.user.id)
+        .single();
+      avatarUrl = profile?.avatar_url;
+    } catch {
+      // 忽略头像加载错误
+    }
   }
 
   return (
     <html lang="zh">
+      <head>
+        <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+      </head>
       <body>
         <div className="min-h-screen flex flex-col">
           <header className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-white/70 backdrop-blur">

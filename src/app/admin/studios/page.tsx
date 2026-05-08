@@ -34,6 +34,7 @@ export default function StudiosAdminPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   function showToast(text: string) {
     setToast(text);
@@ -57,17 +58,21 @@ export default function StudiosAdminPage() {
 
   async function loadStudios() {
     setLoading(true);
-    const { data } = await supabase
-      .from("studios")
-      .select("*")
-      .order("created_at", { ascending: false });
+    try {
+      const { data } = await supabase
+        .from("studios")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    setStudios((data as Studio[]) || []);
-    setLoading(false);
+      setStudios((data as Studio[]) || []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     loadStudios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSave(e: React.FormEvent) {
@@ -84,56 +89,91 @@ export default function StudiosAdminPage() {
       is_active: form.is_active,
     };
 
-    if (form.id) {
-      const { error } = await supabase
-        .from("studios")
-        .update(payload)
-        .eq("id", form.id);
+    try {
+      if (form.id) {
+        const { error } = await supabase
+          .from("studios")
+          .update(payload)
+          .eq("id", form.id);
 
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
-      setMessage("已更新");
-    } else {
-      const { error } = await supabase.from("studios").insert(payload);
+        if (error) throw error;
+        setMessage("已更新");
+      } else {
+        const { error } = await supabase.from("studios").insert(payload);
 
-      if (error) {
-        setMessage(error.message);
-        return;
+        if (error) throw error;
+        setMessage("已新增");
       }
-      setMessage("已新增");
+
+      setForm({ ...emptyForm });
+      loadStudios();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "操作失败");
     }
-
-    setForm({ ...emptyForm });
-    loadStudios();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("确定删除这个工作室吗？")) return;
 
-    const { error } = await supabase.from("studios").delete().eq("id", id);
-    if (error) {
-      setMessage(error.message);
-      return;
+    try {
+      const { error } = await supabase.from("studios").delete().eq("id", id);
+      if (error) throw error;
+      showToast("已删除");
+      loadStudios();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "删除失败");
     }
-    loadStudios();
   }
 
   async function refreshDemo() {
     setMessage("");
-    const res = await fetch("/api/refresh-works", { method: "POST" });
-    if (!res.ok) {
-      setMessage("刷新失败，请检查登录状态");
-      return;
+    setRefreshing(true);
+    try {
+      const res = await fetch("/api/refresh-works", { method: "POST" });
+      setRefreshing(false);
+      if (!res.ok) {
+        showToast("刷新失败（" + res.status + "）");
+        return;
+      }
+      const result = await res.json();
+      const inserted = result.inserted ?? 0;
+      const updated = result.updated ?? 0;
+      const debugRows = Array.isArray(result.debug) ? result.debug : [];
+      if (inserted === 0 && updated === 0) {
+        showToast("无新内容");
+      } else {
+        const parts = [];
+        if (inserted > 0) parts.push(`新增 ${inserted} 条`);
+        if (updated > 0) parts.push(`更新封面 ${updated} 条`);
+        showToast(parts.join("，"));
+      }
+      if (debugRows.length > 0) {
+        setMessage(
+          debugRows
+            .map(
+              (d: {
+                studio?: string;
+                scraped?: number;
+                existing?: number;
+                matched?: number;
+                updated?: number;
+                inserted?: number;
+              }) =>
+                `${d.studio || "Unknown"}: scraped=${d.scraped ?? 0}, existing=${d.existing ?? 0}, matched=${d.matched ?? 0}, updated=${d.updated ?? 0}, inserted=${d.inserted ?? 0}`
+            )
+            .join("\n")
+        );
+      }
+    } catch (e) {
+      setRefreshing(false);
+      showToast("请求失败：" + (e instanceof Error ? e.message : String(e)));
     }
-    showToast("已刷新作品数据");
   }
 
   return (
     <div>
       {toast && (
-        <div className="fixed right-6 top-6 z-50 rounded-full border border-black/20 bg-white px-4 py-2 text-sm shadow-sm">
+        <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 rounded-full bg-black px-4 py-2 text-sm text-white shadow-lg">
           {toast}
         </div>
       )}
@@ -243,8 +283,9 @@ export default function StudiosAdminPage() {
             type="button"
             className="btn"
             onClick={refreshDemo}
+            disabled={refreshing}
           >
-            刷新数据
+            {refreshing ? "刷新中..." : "刷新数据"}
           </button>
         </div>
 
