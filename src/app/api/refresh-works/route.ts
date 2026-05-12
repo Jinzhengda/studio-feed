@@ -9,6 +9,9 @@ type ScrapedWork = {
   publishedAt?: string | null;
 };
 
+type CheerioRoot = ReturnType<typeof load>;
+type CheerioSelection = ReturnType<CheerioRoot>;
+
 const IGNORE_TITLES = new Set([
   "show all projects",
   "load more",
@@ -41,6 +44,147 @@ function toAbsolute(base: string, href: string) {
   }
 }
 
+function isVideoUrl(input: string) {
+  return /\.(mp4|webm|mov)(\?|$)/i.test(input);
+}
+
+function splitSrcset(srcset: string) {
+  return srcset
+    .split(/,\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function getBestSrcFromSrcset(srcset: string) {
+  const srcsetParts = splitSrcset(srcset);
+  if (srcsetParts.length === 0) return "";
+  return srcsetParts[srcsetParts.length - 1].split(/\s+/)[0] || "";
+}
+
+function getBestSrcFromCommaList(input: string) {
+  const parts = input
+    .split(/,\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return "";
+  return parts[parts.length - 1].split(/\s+/)[0] || "";
+}
+
+function normalizeMediaUrl(base: string, input: string) {
+  const absolute = toAbsolute(base, input);
+
+  try {
+    const url = new URL(absolute);
+    if (url.pathname === "/_vercel/image") {
+      const source = url.searchParams.get("url");
+      if (source) return improveImageUrlQuality(source);
+    }
+  } catch {
+    // Fall through to the original URL.
+  }
+
+  return isVideoUrl(absolute) ? absolute : improveImageUrlQuality(absolute);
+}
+
+function isUsableMediaUrl(input: string | null | undefined) {
+  if (!input) return false;
+  if (input.startsWith("data:image")) return false;
+  if (input.includes("A17_social.png")) return false;
+  if (
+    input.includes(
+      "e2ee60a94e1ccaae172c0c8304c59572d6316bb2-1200x630.png"
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function firstUsableMediaUrl(base: string, candidates: Array<string | null | undefined>) {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const normalized = normalizeMediaUrl(base, candidate);
+    if (isUsableMediaUrl(normalized)) return normalized;
+  }
+  return null;
+}
+
+function mediaFromStyle(base: string, style: string | null | undefined) {
+  if (!style) return null;
+  const matches = [...style.matchAll(/url\(['"]?([^'")]+)['"]?\)/g)];
+  return firstUsableMediaUrl(base, matches.map((match) => match[1]));
+}
+
+function extractMediaFromSelection(
+  $: CheerioRoot,
+  base: string,
+  $root: CheerioSelection
+) {
+  const select = (selector: string) => $root.filter(selector).add($root.find(selector));
+
+  const videoCandidates: string[] = [];
+  select("video").each((_, el) => {
+    const $el = $(el);
+    videoCandidates.push(
+      $el.attr("data-videobackgroundresponsive-desktop") || "",
+      $el.attr("data-video-src") || "",
+      $el.attr("data-src") || "",
+      $el.attr("src") || "",
+      $el.attr("poster") || ""
+    );
+  });
+  select("video source").each((_, el) => {
+    const $el = $(el);
+    videoCandidates.push($el.attr("src") || "", $el.attr("data-src") || "");
+  });
+  const video = firstUsableMediaUrl(base, videoCandidates);
+  if (video) return video;
+
+  const imageCandidates: string[] = [];
+  select("source").each((_, el) => {
+    const $el = $(el);
+    imageCandidates.push(
+      getBestSrcFromSrcset($el.attr("srcset") || ""),
+      getBestSrcFromSrcset($el.attr("data-srcset") || ""),
+      $el.attr("data-src") || "",
+      $el.attr("src") || ""
+    );
+  });
+  select("img").each((_, el) => {
+    const $el = $(el);
+    imageCandidates.push(
+      getBestSrcFromSrcset($el.attr("srcset") || ""),
+      getBestSrcFromSrcset($el.attr("data-srcset") || ""),
+      $el.attr("data-src") || "",
+      $el.attr("data-lazy") || "",
+      $el.attr("data-original") || "",
+      $el.attr("src") || ""
+    );
+  });
+  select("[bg-set]").each((_, el) => {
+    const bgSet = $(el).attr("bg-set") || "";
+    imageCandidates.push(getBestSrcFromCommaList(bgSet));
+  });
+  const image = firstUsableMediaUrl(base, imageCandidates);
+  if (image) return image;
+
+  for (const el of select("[style*='background']").toArray()) {
+    const styleMedia = mediaFromStyle(base, $(el).attr("style"));
+    if (styleMedia) return styleMedia;
+  }
+
+  return null;
+}
+
+function extractMediaOrPlaceholder(
+  $: CheerioRoot,
+  base: string,
+  $root: CheerioSelection,
+  seed: string
+) {
+  return extractMediaFromSelection($, base, $root) || placeholderImage(seed);
+}
+
 function improveImageUrlQuality(input: string) {
   try {
     const url = new URL(input);
@@ -56,6 +200,13 @@ function improveImageUrlQuality(input: string) {
       if (!w || w < 1600) url.searchParams.set("w", "1920");
       url.searchParams.set("q", "90");
       url.searchParams.set("auto", "format,compress");
+    } else if (url.hostname.includes("images.prismic.io")) {
+      const w = Number(url.searchParams.get("w") || "0");
+      if (!w || w < 1600) url.searchParams.set("w", "1600");
+      url.searchParams.set("q", "90");
+      if (!url.searchParams.get("auto")) {
+        url.searchParams.set("auto", "format,compress");
+      }
     } else if (url.hostname.includes("res.cloudinary.com")) {
       // insert quality/width transformations into Cloudinary URL path
       const parts = url.pathname.split("/upload/");
@@ -128,6 +279,41 @@ function findDateInJsonLd(node: unknown): string | null {
   return null;
 }
 
+function findMediaInJsonLd(node: unknown): string | null {
+  if (!node) return null;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findMediaInJsonLd(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof node === "string") {
+    return /\.(jpg|jpeg|png|webp|gif|heif|avif|mp4|webm|mov)(\?|$)/i.test(node)
+      ? node
+      : null;
+  }
+  if (typeof node === "object") {
+    const obj = node as Record<string, unknown>;
+    const direct =
+      obj.image || obj.thumbnailUrl || obj.contentUrl || obj.url;
+    if (typeof direct === "string") {
+      const found = findMediaInJsonLd(direct);
+      if (found) return found;
+    }
+    const keys = ["image", "thumbnailUrl", "contentUrl", "associatedMedia"];
+    for (const key of keys) {
+      const found = findMediaInJsonLd(obj[key]);
+      if (found) return found;
+    }
+    for (const key of Object.keys(obj)) {
+      const found = findMediaInJsonLd(obj[key]);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 function extractPublishedAtFromHtml(html: string): string | null {
   const $ = load(html);
   const meta =
@@ -164,18 +350,99 @@ function extractPublishedAtFromHtml(html: string): string | null {
   return null;
 }
 
-async function extractOgImage(url: string): Promise<string | null> {
+function extractFirstVideoUrlFromHtml(html: string, pageUrl: string) {
+  const candidates = [
+    ...html.matchAll(/https?:\\?\/\\?\/[^"'<>\\\s]+?\.(?:mp4|webm|mov)/gi),
+  ].map((match) => match[0].replace(/\\\//g, "/"));
+
+  let slug = "";
+  try {
+    slug = new URL(pageUrl).pathname.split("/").filter(Boolean).pop() || "";
+  } catch {
+    slug = "";
+  }
+
+  if (slug) {
+    const matchingSlug = candidates.find((url) =>
+      url.includes(`/media/pages/work/${slug}/`)
+    );
+    if (matchingSlug) return matchingSlug;
+  }
+
+  for (const url of candidates) {
+    if (url.includes("/media/pages/work/")) return url;
+  }
+
+  return candidates[0] || null;
+}
+
+async function extractFirstMediaUrlFromNuxtPayload(html: string, pageUrl: string) {
+  const $ = load(html);
+  const payloadSrc = $('#__NUXT_DATA__[data-src]').attr("data-src") || "";
+  if (!payloadSrc) return null;
+
+  try {
+    const payloadUrl = toAbsolute(pageUrl, payloadSrc);
+    const payload = await fetchHtml(payloadUrl);
+    const candidates = [
+      ...payload.matchAll(
+        /https?:\\?\/\\?\/[^"'<>\\\s]+?\.(?:jpg|jpeg|png|webp|gif|heif)(?:\?[^"'<>\\\s]*)?/gi
+      ),
+    ].map((match) => match[0].replace(/\\\//g, "/"));
+
+    for (const candidate of candidates) {
+      if (candidate.includes(".svg")) continue;
+      const normalized = normalizeMediaUrl(pageUrl, candidate);
+      if (isUsableMediaUrl(normalized)) return normalized;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function extractBestMedia(url: string): Promise<string | null> {
   try {
     const html = await fetchHtml(url);
     const $ = load(html);
-    const og =
+    const metaCandidates = [
       $('meta[property="og:image"]').attr("content") ||
+        "",
       $('meta[name="twitter:image"]').attr("content") ||
+        "",
       $('meta[name="twitter:image:src"]').attr("content") ||
+        "",
+    ];
+    const metaMedia = firstUsableMediaUrl(url, metaCandidates);
+    if (metaMedia) return metaMedia;
+
+    const firstVideo =
+      $("video source").first().attr("src") ||
+      $("video").first().attr("src") ||
+      extractFirstVideoUrlFromHtml(html, url) ||
       "";
-    if (og) return toAbsolute(url, og);
-    const firstImg = $("img").first().attr("src") || "";
-    if (firstImg) return toAbsolute(url, firstImg);
+    const videoMedia = firstUsableMediaUrl(url, [firstVideo]);
+    if (videoMedia) return videoMedia;
+
+    const jsonLd = $('script[type="application/ld+json"]')
+      .map((_, el) => $(el).text())
+      .get();
+    for (const raw of jsonLd) {
+      try {
+        const found = findMediaInJsonLd(JSON.parse(raw));
+        const jsonLdMedia = firstUsableMediaUrl(url, [found]);
+        if (jsonLdMedia) return jsonLdMedia;
+      } catch {
+        // ignore
+      }
+    }
+
+    const bodyMedia = extractMediaFromSelection($, url, $("body"));
+    if (bodyMedia) return bodyMedia;
+
+    const payloadMedia = await extractFirstMediaUrlFromNuxtPayload(html, url);
+    if (payloadMedia) return payloadMedia;
   } catch {
     return null;
   }
@@ -208,48 +475,8 @@ async function scrapeUDL(url: string): Promise<ScrapedWork[]> {
 
     const workUrl = normalizeUrl(toAbsolute("https://u-d-l.com/", href));
 
-    // 从 bg-set 属性中提取图片 URL
-    const imageWrap = $(el).find(".image_wrap");
-    const bgSet = imageWrap.attr("bg-set") || "";
-    let thumbnailUrl = placeholderImage(workUrl);
-
-    if (bgSet) {
-      // bg-set 格式: "url1.jpg,url@2x.jpg 2x" - 优先选择高清图片，避免SVG占位符
-      const parts = bgSet.split(",").map((s) => s.trim()).filter(Boolean);
-
-      // 优先策略：找 @2x.jpg 或 @2x.png
-      for (let i = parts.length - 1; i >= 0; i--) {
-        const cleanUrl = parts[i].split(" ")[0];
-        if (cleanUrl && cleanUrl.startsWith("//") &&
-            (cleanUrl.includes("@2x.jpg") || cleanUrl.includes("@2x.png"))) {
-          thumbnailUrl = "https:" + cleanUrl;
-          break;
-        }
-      }
-
-      // 回退：找任何 jpg/png（非SVG）
-      if (thumbnailUrl === placeholderImage(workUrl)) {
-        for (let i = parts.length - 1; i >= 0; i--) {
-          const cleanUrl = parts[i].split(" ")[0];
-          if (cleanUrl && cleanUrl.startsWith("//") &&
-              (cleanUrl.endsWith(".jpg") || cleanUrl.endsWith(".png"))) {
-            thumbnailUrl = "https:" + cleanUrl;
-            break;
-          }
-        }
-      }
-
-      // 最后回退：任何非SVG的URL
-      if (thumbnailUrl === placeholderImage(workUrl)) {
-        for (let i = parts.length - 1; i >= 0; i--) {
-          const cleanUrl = parts[i].split(" ")[0];
-          if (cleanUrl && cleanUrl.startsWith("//") && !cleanUrl.endsWith(".svg")) {
-            thumbnailUrl = "https:" + cleanUrl;
-            break;
-          }
-        }
-      }
-    }
+    const $link = $(el);
+    const thumbnailUrl = extractMediaOrPlaceholder($, url, $link, workUrl);
 
     items.push({
       title,
@@ -280,31 +507,7 @@ async function scrapeNDC(url: string): Promise<ScrapedWork[]> {
     const title = $link.text().replace(/\s+/g, " ").trim();
     if (!title || IGNORE_TITLES.has(title.toLowerCase())) return;
 
-    let thumbnailUrl = "";
-
-    // Try img inside the link
-    const $img = $link.find("img").first();
-    if ($img.length) {
-      const srcset = $img.attr("srcset") || $img.attr("data-srcset") || "";
-      const srcsetParts = srcset.split(",").map((s) => s.trim()).filter(Boolean);
-      const srcFromSet = srcsetParts.length > 0 ? srcsetParts[srcsetParts.length - 1].split(" ")[0] : "";
-      const src = srcFromSet || $img.attr("src") || $img.attr("data-src") || $img.attr("data-lazy") || "";
-      if (src) thumbnailUrl = improveImageUrlQuality(toAbsolute(url, src));
-    }
-
-    // Try background-image style
-    if (!thumbnailUrl) {
-      const $bgEl = $link.find("[style*='background']").first();
-      if ($bgEl.length) {
-        const style = $bgEl.attr("style") || "";
-        const match = style.match(/url\(['"]?([^'"]+)['"]?\)/);
-        if (match && match[1]) thumbnailUrl = improveImageUrlQuality(toAbsolute(url, match[1]));
-      }
-    }
-
-    if (!thumbnailUrl || thumbnailUrl.startsWith("data:image")) {
-      thumbnailUrl = placeholderImage(workUrl);
-    }
+    const thumbnailUrl = extractMediaOrPlaceholder($, url, $link, workUrl);
 
     seen.add(key);
     items.push({ title, workUrl, thumbnailUrl });
@@ -355,40 +558,13 @@ async function scrapePortoRocha(url: string): Promise<ScrapedWork[]> {
     const key = workUrl.toLowerCase();
     if (seen.has(key)) return;
 
-    let thumbnailUrl = "";
-
-    // 1) image in link
-    let $img = $link.find("img").first();
-
-    // 2) fallback to nearest card/article parent image
-    if (!$img.length) {
-      const $parent = $link.closest("article, .item, .work, .project, [class*='card'], [class*='project']");
-      $img = $parent.find("img").first();
-    }
-
-    if ($img.length) {
-      const srcset = $img.attr("srcset") || $img.attr("data-srcset") || "";
-      const srcsetParts = srcset.split(",").map((s) => s.trim()).filter(Boolean);
-      const srcFromSet = srcsetParts.length > 0 ? srcsetParts[srcsetParts.length - 1].split(" ")[0] : "";
-      const src = srcFromSet || $img.attr("src") || $img.attr("data-src") || $img.attr("data-lazy") || "";
-      if (src) thumbnailUrl = improveImageUrlQuality(toAbsolute(url, src));
-    }
-
-    // 3) background-image fallback
-    if (!thumbnailUrl) {
-      const $bgEl = $link.find("[style*='background']").first();
-      if ($bgEl.length) {
-        const style = $bgEl.attr("style") || "";
-        const match = style.match(/url\(['"]?([^'"]+)['"]?\)/);
-        if (match && match[1]) {
-          thumbnailUrl = improveImageUrlQuality(toAbsolute(url, match[1]));
-        }
-      }
-    }
-
-    if (!thumbnailUrl || thumbnailUrl.startsWith("data:image")) {
-      thumbnailUrl = placeholderImage(workUrl);
-    }
+    const $mediaRoot = $link.closest("article, .item, .work, .project, [class*='card'], [class*='project']");
+    const thumbnailUrl = extractMediaOrPlaceholder(
+      $,
+      url,
+      $mediaRoot.length ? $mediaRoot : $link,
+      workUrl
+    );
 
     seen.add(key);
     items.push({
@@ -490,37 +666,15 @@ async function scrapeGeneric(url: string): Promise<ScrapedWork[]> {
       if (!title || title.length < 2 || title.length > 200) return;
       if (IGNORE_TITLES.has(title.toLowerCase())) return;
 
-      // 提取图片
-      let thumbnailUrl = placeholderImage(normalized);
-
-      // 查找图片
-      let $img = $link.find("img").first();
-      if (!$img.length) {
-        const $parent = $link.closest('[data-behavior="projectCard"], [data-project], article, .item');
-        $img = $parent.find("img").first();
-      }
-
-      if ($img.length) {
-        const srcset = $img.attr("srcset") || $img.attr("data-srcset") || "";
-        const srcsetParts = srcset.split(",").map((s) => s.trim()).filter(Boolean);
-        const srcFromSet = srcsetParts.length > 0 ? srcsetParts[srcsetParts.length - 1].split(" ")[0] : "";
-        const src = srcFromSet || $img.attr("src") || $img.attr("data-src") || $img.attr("data-lazy") || $img.attr("data-original") || "";
-        if (src) {
-          thumbnailUrl = improveImageUrlQuality(toAbsolute(url, src));
-        }
-      }
-
-      // 检查背景图
-      if (thumbnailUrl === placeholderImage(normalized)) {
-        const $bgEl = $link.find("[style*='background-image']").first();
-        if ($bgEl.length) {
-          const style = $bgEl.attr("style") || "";
-          const match = style.match(/url\(['"]?([^'"]+)['"]?\)/);
-          if (match && match[1]) {
-            thumbnailUrl = toAbsolute(url, match[1]);
-          }
-        }
-      }
+      const $mediaRoot = $link.closest(
+        '[data-behavior="projectCard"], [data-project], [data-work], article, .item, .work, .project, .case-study, [class*="card"], [class*="project"], [class*="work"], [class*="case"]'
+      );
+      const thumbnailUrl = extractMediaOrPlaceholder(
+        $,
+        url,
+        $mediaRoot.length ? $mediaRoot : $link,
+        normalized
+      );
 
       foundLinks.add(normalized);
       items.push({
@@ -617,13 +771,13 @@ async function scrapeFromSitemap(url: string): Promise<ScrapedWork[]> {
 
     if (!title || IGNORE_TITLES.has(title.toLowerCase())) continue;
 
-    const og = await extractOgImage(normalized);
+    const media = await extractBestMedia(normalized);
 
     seen.add(lower);
     items.push({
       title,
       workUrl: normalized,
-      thumbnailUrl: og || placeholderImage(normalized),
+      thumbnailUrl: media || placeholderImage(normalized),
     });
 
     if (items.length >= 12) break;
@@ -700,40 +854,7 @@ async function scrapePentagram(url: string): Promise<ScrapedWork[]> {
 
     if (!title || IGNORE_TITLES.has(title.toLowerCase())) return;
 
-    // 提取图片 - Pentagram 使用多种方式
-    let thumbnailUrl = placeholderImage(workUrl);
-
-    // 方法1: 查找 img 标签
-    const $img = $card.find("img").first();
-    if ($img.length) {
-      const src = $img.attr("src") || $img.attr("data-src") || $img.attr("srcset")?.split(" ")[0];
-      if (src) {
-        thumbnailUrl = toAbsolute(url, src);
-      }
-    }
-
-    // 方法2: 查找 picture 标签
-    if (thumbnailUrl === placeholderImage(workUrl)) {
-      const $picture = $card.find("picture source").first();
-      if ($picture.length) {
-        const srcset = $picture.attr("srcset");
-        if (srcset) {
-          thumbnailUrl = toAbsolute(url, srcset.split(" ")[0]);
-        }
-      }
-    }
-
-    // 方法3: 查找背景图
-    if (thumbnailUrl === placeholderImage(workUrl)) {
-      const $bgEl = $card.find("[style*='background']").first();
-      if ($bgEl.length) {
-        const style = $bgEl.attr("style") || "";
-        const match = style.match(/url\(['"]?([^'"]+)['"]?\)/);
-        if (match && match[1]) {
-          thumbnailUrl = toAbsolute(url, match[1]);
-        }
-      }
-    }
+    const thumbnailUrl = extractMediaOrPlaceholder($, url, $card, workUrl);
 
     items.push({
       title,
@@ -770,30 +891,7 @@ async function scrapeSDL(url: string): Promise<ScrapedWork[]> {
 
     if (!title || title.length < 2 || IGNORE_TITLES.has(title.toLowerCase())) return;
 
-    let thumbnailUrl = "";
-    const $img = $link.find("img").first();
-    if ($img.length) {
-      const srcset = $img.attr("srcset") || $img.attr("data-srcset") || "";
-      const srcsetItems = srcset
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const srcFromSet =
-        srcsetItems.length > 0
-          ? srcsetItems[srcsetItems.length - 1].split(" ")[0] || ""
-          : "";
-      const src =
-        srcFromSet ||
-        $img.attr("src") ||
-        $img.attr("data-src") ||
-        $img.attr("data-lazy") ||
-        "";
-      if (src) thumbnailUrl = improveImageUrlQuality(toAbsolute(url, src));
-    }
-
-    if (!thumbnailUrl || thumbnailUrl.startsWith("data:image")) {
-      thumbnailUrl = placeholderImage(workUrl);
-    }
+    const thumbnailUrl = extractMediaOrPlaceholder($, workListUrl, $link, workUrl);
 
     seen.add(key);
     items.push({
@@ -883,24 +981,62 @@ async function scrapeArea17(url: string): Promise<ScrapedWork[]> {
     }
     if (!title || title.length < 2 || IGNORE_TITLES.has(title.toLowerCase())) return;
 
-    let thumbnailUrl = "";
-    const $img = $link.find("img").first();
-    if ($img.length) {
-      const srcset = $img.attr("srcset") || $img.attr("data-srcset") || "";
-      const srcsetParts = srcset.split(",").map((s) => s.trim()).filter(Boolean);
-      const srcFromSet = srcsetParts.length > 0 ? srcsetParts[srcsetParts.length - 1].split(" ")[0] : "";
-      const src = srcFromSet || $img.attr("src") || $img.attr("data-src") || "";
-      if (src) thumbnailUrl = improveImageUrlQuality(toAbsolute(url, src));
-    }
-    if (!thumbnailUrl || thumbnailUrl.startsWith("data:image")) {
-      thumbnailUrl = placeholderImage(workUrl);
-    }
+    const $card = $link.closest("[data-card-client-landing], li");
+    const $mediaRoot = $card.length ? $card : $link;
+    const thumbnailUrl = extractMediaOrPlaceholder($, url, $mediaRoot, workUrl);
 
     seen.add(key);
     items.push({ title, workUrl, thumbnailUrl });
   });
 
   return items.slice(0, 12);
+}
+
+async function scrapeCollins(url: string): Promise<ScrapedWork[]> {
+  const caseStudiesUrl = toAbsolute(url, "/case-studies");
+  const html = await fetchHtml(caseStudiesUrl);
+  const $ = load(html);
+  const items: ScrapedWork[] = [];
+  const seen = new Set<string>();
+
+  $(".overview .shelf > .card, .shelf > .card").each((_, el) => {
+    const $card = $(el);
+    const $link = $card
+      .find(
+        'a[href^="/case-studies/"], a[href*="wearecollins.com/case-studies/"]'
+      )
+      .first();
+    const href = $link.attr("href") || "";
+    if (!href || /\/case-studies\/?$/.test(href)) return;
+
+    const workUrl = normalizeUrl(toAbsolute(caseStudiesUrl, href));
+    const key = workUrl.toLowerCase();
+    if (seen.has(key)) return;
+
+    let title =
+      $link.attr("aria-label") ||
+      $link.attr("title") ||
+      $link.find("span,h1,h2,h3,h4").first().text().trim() ||
+      $link.text().replace(/\s+/g, " ").trim();
+
+    if (!title) {
+      const slug = href.split("/").filter(Boolean).pop() || "";
+      title = slug
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
+    }
+    if (!title || title.length < 2 || IGNORE_TITLES.has(title.toLowerCase())) {
+      return;
+    }
+
+    const thumbnailUrl = extractMediaOrPlaceholder($, caseStudiesUrl, $card, workUrl);
+
+    seen.add(key);
+    items.push({ title, workUrl, thumbnailUrl });
+  });
+
+  return items.slice(0, 24);
 }
 
 async function scrapeByUrl(url: string): Promise<ScrapedWork[]> {
@@ -912,6 +1048,7 @@ async function scrapeByUrl(url: string): Promise<ScrapedWork[]> {
   if (url.includes("pentagram.com")) return scrapePentagram(url);
   if (url.includes("stockholmdesignlab.se")) return scrapeSDL(url);
   if (url.includes("area17.com")) return scrapeArea17(url);
+  if (url.includes("wearecollins.com")) return scrapeCollins(url);
 
   // 使用通用抓取（含路径与 sitemap 回退）
   return scrapeGenericWithFallback(url);
@@ -980,16 +1117,16 @@ async function processStudio(
       studioDebug.matched++;
       const currentThumb = existingWork.thumbnail_url || "";
       const scrapedThumb =
-        item.thumbnailUrl && !item.thumbnailUrl.startsWith("data:image/svg+xml")
+        isUsableMediaUrl(item.thumbnailUrl)
           ? item.thumbnailUrl
           : null;
       const needsUpdate =
         !currentThumb ||
-        currentThumb.startsWith("data:image/svg+xml") ||
+        !isUsableMediaUrl(currentThumb) ||
         (scrapedThumb != null && scrapedThumb !== currentThumb);
       if (!needsUpdate) continue;
 
-      const ogImage = scrapedThumb ? null : await extractOgImage(item.workUrl);
+      const ogImage = scrapedThumb ? null : await extractBestMedia(item.workUrl);
       const nextThumb = scrapedThumb || ogImage;
 
       if (nextThumb) {
@@ -999,8 +1136,11 @@ async function processStudio(
       continue;
     }
 
-    const ogImage = await extractOgImage(item.workUrl);
-    const thumb = ogImage || item.thumbnailUrl || placeholderImage(item.workUrl);
+    const ogImage = await extractBestMedia(item.workUrl);
+    const thumb =
+      (isUsableMediaUrl(ogImage) ? ogImage : null) ||
+      (isUsableMediaUrl(item.thumbnailUrl) ? item.thumbnailUrl : null) ||
+      placeholderImage(item.workUrl);
     const published =
       normalizeDate(item.publishedAt || null) ||
       (await extractPublishedAt(item.workUrl));

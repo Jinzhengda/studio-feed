@@ -15,6 +15,17 @@ type WorkCard = {
   first_seen_at: string;
 };
 
+type WorkRow = {
+  id: string;
+  title: string | null;
+  thumbnail_url: string | null;
+  work_url: string | null;
+  published_at: string | null;
+  created_at: string | null;
+  first_seen_at: string | null;
+  studios: { name: string | null; cover_url: string | null } | { name: string | null; cover_url: string | null }[] | null;
+};
+
 const demoSizes = [
   [800, 520],
   [800, 1000],
@@ -59,11 +70,11 @@ export default async function HomePage() {
     .order("first_seen_at", { ascending: false });
 
   const works: WorkCard[] =
-    data?.map((w: any) => {
+    (data as WorkRow[] | null)?.map((w) => {
       const studio = Array.isArray(w.studios) ? w.studios[0] : w.studios;
       return {
         id: w.id,
-        title: w.title,
+        title: w.title || "Untitled",
         studio: studio?.name || "Unknown Studio",
         thumbnail_url: w.thumbnail_url || "",
         studio_cover_url: studio?.cover_url || "",

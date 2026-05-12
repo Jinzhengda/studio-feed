@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Work = {
@@ -10,26 +10,56 @@ type Work = {
   work_url: string | null;
   published_at: string | null;
   is_visible: boolean;
-  studios?: { name: string }[] | null;
+  studios?: { name: string } | { name: string }[] | null;
 };
 
+type VisibilityFilter = "all" | "visible" | "hidden";
+
 export default function WorksAdminPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [works, setWorks] = useState<Work[]>([]);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [visibility, setVisibility] = useState<VisibilityFilter>("all");
 
-  async function loadWorks() {
-    const { data } = await supabase
+  const loadWorks = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
       .from("works")
-      .select("id,title,thumbnail_url,work_url,published_at,is_visible, studios(name)")
-      .order("published_at", { ascending: false });
+      .select("id,title,thumbnail_url,work_url,published_at,is_visible,studios(name)")
+      .order("published_at", { ascending: false, nullsFirst: false });
 
-    setWorks(((data ?? []) as Work[]) || []);
-  }
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setWorks((data ?? []) as Work[]);
+    }
+    setLoading(false);
+  }, [supabase]);
 
   useEffect(() => {
-    loadWorks();
-  }, []);
+    void Promise.resolve().then(loadWorks);
+  }, [loadWorks]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredWorks = works.filter((work) => {
+    const studioName = getStudioName(work).toLowerCase();
+    const matchesQuery =
+      !normalizedQuery ||
+      work.title.toLowerCase().includes(normalizedQuery) ||
+      studioName.includes(normalizedQuery) ||
+      (work.work_url || "").toLowerCase().includes(normalizedQuery);
+
+    const matchesVisibility =
+      visibility === "all" ||
+      (visibility === "visible" && work.is_visible) ||
+      (visibility === "hidden" && !work.is_visible);
+
+    return matchesQuery && matchesVisibility;
+  });
+  const visibleCount = works.filter((work) => work.is_visible).length;
+  const hiddenCount = works.length - visibleCount;
 
   async function toggleVisible(work: Work) {
     const { error } = await supabase
@@ -54,11 +84,49 @@ export default function WorksAdminPage() {
     loadWorks();
   }
 
+  function getStudioName(work: Work) {
+    const studio = Array.isArray(work.studios) ? work.studios[0] : work.studios;
+    return studio?.name || "-";
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold">作品管理</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">作品管理</h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            共 {works.length} 条，{visibleCount} 条可见，{hiddenCount} 条隐藏
+          </p>
+        </div>
+        <button type="button" className="btn" onClick={loadWorks} disabled={loading}>
+          {loading ? "刷新中..." : "刷新列表"}
+        </button>
+      </div>
 
       {message && <p className="mt-4 text-sm text-[var(--muted)]">{message}</p>}
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input
+          className="w-full rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm sm:max-w-sm"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="搜索标题、工作室或链接"
+        />
+        <div className="inline-flex w-fit rounded-full border border-[var(--stroke)] p-1 text-sm">
+          {(["all", "visible", "hidden"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={`rounded-full px-3 py-1 transition-colors ${
+                visibility === item ? "bg-black text-white" : "text-[var(--muted)] hover:bg-black/5"
+              }`}
+              onClick={() => setVisibility(item)}
+            >
+              {item === "all" ? "全部" : item === "visible" ? "可见" : "隐藏"}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <table className="mt-6 w-full border-collapse text-sm">
         <thead>
@@ -71,13 +139,20 @@ export default function WorksAdminPage() {
           </tr>
         </thead>
         <tbody>
-          {works.map((work) => (
+          {filteredWorks.map((work) => (
             <tr key={work.id}>
               <td className="border-b border-[var(--stroke)] py-2">
-                {work.title}
+                <a
+                  href={work.work_url || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline-offset-4 hover:underline"
+                >
+                  {work.title}
+                </a>
               </td>
               <td className="border-b border-[var(--stroke)] py-2">
-                {work.studios?.[0]?.name || "-"}
+                {getStudioName(work)}
               </td>
               <td className="border-b border-[var(--stroke)] py-2">
                 {work.published_at
@@ -105,10 +180,17 @@ export default function WorksAdminPage() {
               </td>
             </tr>
           ))}
-          {works.length === 0 && (
+          {!loading && filteredWorks.length === 0 && (
             <tr>
               <td className="py-4 text-sm text-[var(--muted)]" colSpan={5}>
-                暂无作品
+                {works.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
+              </td>
+            </tr>
+          )}
+          {loading && (
+            <tr>
+              <td className="py-4 text-sm text-[var(--muted)]" colSpan={5}>
+                加载中...
               </td>
             </tr>
           )}

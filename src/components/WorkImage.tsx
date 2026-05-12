@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const FALLBACK_SVG =
   "data:image/svg+xml;charset=utf-8," +
@@ -11,6 +11,16 @@ const FALLBACK_SVG =
       <text x="48" y="120" font-family="sans-serif" font-size="22" fill="#999">no image</text>
     </svg>`
   );
+
+function proxyImageUrl(url: string) {
+  if (url.startsWith("https://s.u-d-l.com/")) {
+    const encoded = Array.from(url)
+      .map((char) => char.charCodeAt(0).toString(16).padStart(2, "0"))
+      .join("");
+    return `/api/media?src=${encoded}`;
+  }
+  return url;
+}
 
 export default function WorkImage({
   src,
@@ -23,71 +33,57 @@ export default function WorkImage({
   alt: string;
   className?: string;
 }) {
-  const [current, setCurrent] = useState<string>(FALLBACK_SVG);
-  const [loading, setLoading] = useState(true);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const isPlaceholder = !!src && src.startsWith("data:image/svg+xml");
+  const imageUrl = isPlaceholder && fallback ? fallback : src || fallback || FALLBACK_SVG;
+  const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(imageUrl);
+  const displayedImageUrl =
+    isVideo && videoFailed
+      ? fallback && !/\.(mp4|webm|mov)(\?|$)/i.test(fallback)
+        ? fallback
+        : FALLBACK_SVG
+      : imageUrl;
+  const renderedImageUrl = proxyImageUrl(displayedImageUrl);
+  const renderedFallback =
+    fallback && !fallback.startsWith("data:image/svg+xml")
+      ? proxyImageUrl(fallback)
+      : fallback;
 
-  useEffect(() => {
-    setLoading(true);
-
-    const isPlaceholder = !!src && src.startsWith("data:image/svg+xml");
-    const imageUrl = isPlaceholder && fallback ? fallback : src || fallback || FALLBACK_SVG;
-
-    if (!imageUrl || imageUrl === FALLBACK_SVG || imageUrl.startsWith("data:image/svg+xml")) {
-      setCurrent(imageUrl);
-      setLoading(false);
-      return;
-    }
-
-    // 添加超时机制，避免无限加载
-    const timeout = setTimeout(() => {
-      setCurrent(fallback || FALLBACK_SVG);
-      setLoading(false);
-    }, 10000); // 10秒超时
-
-    const img = new Image();
-    img.onload = () => {
-      clearTimeout(timeout);
-      setCurrent(imageUrl);
-      setLoading(false);
-    };
-    img.onerror = () => {
-      clearTimeout(timeout);
-      if (fallback && imageUrl !== fallback && !fallback.startsWith("data:image/svg+xml")) {
-        const fallbackImg = new Image();
-        const fallbackTimeout = setTimeout(() => {
-          setCurrent(FALLBACK_SVG);
-          setLoading(false);
-        }, 5000);
-
-        fallbackImg.onload = () => {
-          clearTimeout(fallbackTimeout);
-          setCurrent(fallback);
-          setLoading(false);
-        };
-        fallbackImg.onerror = () => {
-          clearTimeout(fallbackTimeout);
-          setCurrent(FALLBACK_SVG);
-          setLoading(false);
-        };
-        fallbackImg.src = fallback;
-      } else {
-        setCurrent(FALLBACK_SVG);
-        setLoading(false);
-      }
-    };
-    img.src = imageUrl;
-
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [src, fallback]);
+  if (isVideo && !videoFailed) {
+    return (
+      <video
+        src={imageUrl}
+        className={className}
+        aria-label={alt}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster={fallback && !/\.(mp4|webm|mov)(\?|$)/i.test(fallback) ? fallback : undefined}
+        onError={() => setVideoFailed(true)}
+      />
+    );
+  }
 
   return (
     <img
-      src={current}
+      src={renderedImageUrl}
       alt={alt}
       className={className}
-      style={{ opacity: loading ? 0.5 : 1, transition: "opacity 0.3s" }}
+      onError={(event) => {
+        const img = event.currentTarget;
+        const triedFallback = img.dataset.fallbackTried === "true";
+        const nextSrc =
+          renderedFallback && !triedFallback && !renderedFallback.startsWith("data:image/svg+xml")
+            ? renderedFallback
+            : FALLBACK_SVG;
+
+        img.dataset.fallbackTried = "true";
+        if (img.src !== nextSrc) {
+          img.src = nextSrc;
+        }
+      }}
     />
   );
 }

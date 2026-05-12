@@ -1,22 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [userId, setUserId] = useState("");
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/login");
@@ -34,7 +30,11 @@ export default function ProfilePage() {
     if (profile?.avatar_url) {
       setAvatarUrl(profile.avatar_url);
     }
-  }
+  }, [router, supabase]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   async function uploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
     try {
@@ -79,8 +79,8 @@ export default function ProfilePage() {
       setTimeout(() => {
         router.refresh();
       }, 1000);
-    } catch (error: any) {
-      setMessage(error.message || "上传失败");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "上传失败");
     } finally {
       setUploading(false);
     }
