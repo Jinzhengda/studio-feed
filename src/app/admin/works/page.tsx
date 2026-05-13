@@ -107,17 +107,17 @@ export default function WorksAdminPage() {
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
-          className="w-full rounded-lg border border-[var(--stroke)] px-3 py-2 text-sm sm:max-w-sm"
+          className="w-full rounded-none border border-[var(--stroke)] px-3 py-2.5 text-sm sm:max-w-sm"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索标题、工作室或链接"
         />
-        <div className="inline-flex w-fit rounded-full border border-[var(--stroke)] p-1 text-sm">
+        <div className="inline-flex w-fit gap-2 text-sm">
           {(["all", "visible", "hidden"] as const).map((item) => (
             <button
               key={item}
               type="button"
-              className={`rounded-full px-3 py-1 transition-colors ${
+              className={`rounded-full px-3 py-1.5 transition-colors ${
                 visibility === item ? "bg-black text-white" : "text-[var(--muted)] hover:bg-black/5"
               }`}
               onClick={() => setVisibility(item)}
@@ -131,17 +131,17 @@ export default function WorksAdminPage() {
       <table className="mt-6 w-full border-collapse text-sm">
         <thead>
           <tr className="text-left">
-            <th className="border-b border-[var(--stroke)] py-2">作品</th>
-            <th className="border-b border-[var(--stroke)] py-2">工作室</th>
-            <th className="border-b border-[var(--stroke)] py-2">发布时间</th>
-            <th className="border-b border-[var(--stroke)] py-2">可见</th>
-            <th className="border-b border-[var(--stroke)] py-2">操作</th>
+            <th className="border-b border-[var(--stroke)] py-3">作品</th>
+            <th className="border-b border-[var(--stroke)] py-3">工作室</th>
+            <th className="border-b border-[var(--stroke)] py-3">发布时间</th>
+            <th className="border-b border-[var(--stroke)] py-3">可见</th>
+            <th className="border-b border-[var(--stroke)] py-3">操作</th>
           </tr>
         </thead>
         <tbody>
           {filteredWorks.map((work) => (
             <tr key={work.id}>
-              <td className="border-b border-[var(--stroke)] py-2">
+              <td className="border-b border-[var(--stroke)] py-3">
                 <a
                   href={work.work_url || "#"}
                   target="_blank"
@@ -151,18 +151,18 @@ export default function WorksAdminPage() {
                   {work.title}
                 </a>
               </td>
-              <td className="border-b border-[var(--stroke)] py-2">
+              <td className="border-b border-[var(--stroke)] py-3">
                 {getStudioName(work)}
               </td>
-              <td className="border-b border-[var(--stroke)] py-2">
+              <td className="border-b border-[var(--stroke)] py-3">
                 {work.published_at
                   ? new Date(work.published_at).toLocaleDateString()
                   : "-"}
               </td>
-              <td className="border-b border-[var(--stroke)] py-2">
+              <td className="border-b border-[var(--stroke)] py-3">
                 {work.is_visible ? "是" : "否"}
               </td>
-              <td className="border-b border-[var(--stroke)] py-2">
+              <td className="border-b border-[var(--stroke)] py-3">
                 <div className="flex gap-2">
                   <button
                     className="btn-text"
@@ -182,14 +182,14 @@ export default function WorksAdminPage() {
           ))}
           {!loading && filteredWorks.length === 0 && (
             <tr>
-              <td className="py-4 text-sm text-[var(--muted)]" colSpan={5}>
+              <td className="py-5 text-sm text-[var(--muted)]" colSpan={5}>
                 {works.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
               </td>
             </tr>
           )}
           {loading && (
             <tr>
-              <td className="py-4 text-sm text-[var(--muted)]" colSpan={5}>
+              <td className="py-5 text-sm text-[var(--muted)]" colSpan={5}>
                 加载中...
               </td>
             </tr>

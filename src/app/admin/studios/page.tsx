@@ -171,7 +171,7 @@ export default function StudiosAdminPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-12">
       {toast && (
         <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 rounded-full bg-black px-4 py-2 text-sm text-white shadow-lg">
           {toast}
@@ -181,12 +181,12 @@ export default function StudiosAdminPage() {
 
       <form
         onSubmit={handleSave}
-        className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-[var(--stroke)] bg-white p-6"
+        className="grid grid-cols-1 gap-6"
       >
         <div>
           <label className="text-sm">名称</label>
           <input
-            className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
+            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
@@ -196,7 +196,7 @@ export default function StudiosAdminPage() {
         <div>
           <label className="text-sm">官网</label>
           <input
-            className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
+            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
             value={form.website_url}
             onChange={(e) => setForm({ ...form, website_url: e.target.value })}
           />
@@ -205,7 +205,7 @@ export default function StudiosAdminPage() {
         <div>
           <label className="text-sm">RSS / 抓取地址</label>
           <input
-            className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
+            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
             value={form.feed_url}
             onChange={(e) => setForm({ ...form, feed_url: e.target.value })}
           />
@@ -214,7 +214,7 @@ export default function StudiosAdminPage() {
         <div>
           <label className="text-sm">封面图 URL（抓取失败时用）</label>
           <input
-            className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
+            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
             value={form.cover_url}
             onChange={(e) => setForm({ ...form, cover_url: e.target.value })}
             placeholder="https://example.com/cover.jpg"
@@ -233,7 +233,7 @@ export default function StudiosAdminPage() {
         <div>
           <label className="text-sm">位置</label>
           <input
-            className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
+            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
             value={form.location}
             onChange={(e) => setForm({ ...form, location: e.target.value })}
           />
@@ -242,7 +242,7 @@ export default function StudiosAdminPage() {
         <div>
           <label className="text-sm">标签（逗号分隔）</label>
           <input
-            className="mt-2 w-full rounded-lg border border-[var(--stroke)] px-3 py-2"
+            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
             value={form.tags}
             onChange={(e) => setForm({ ...form, tags: e.target.value })}
           />
@@ -257,7 +257,7 @@ export default function StudiosAdminPage() {
           是否启用
         </label>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-1">
           <button
             type="submit"
             className="btn"
@@ -276,8 +276,8 @@ export default function StudiosAdminPage() {
         {message && <p className="text-sm text-[var(--muted)]">{message}</p>}
       </form>
 
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
+      <div>
+        <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-medium">工作室列表</h2>
           <button
             type="button"
@@ -290,34 +290,34 @@ export default function StudiosAdminPage() {
         </div>
 
         {loading ? (
-          <p className="mt-4 text-sm text-[var(--muted)]">加载中...</p>
+          <p className="mt-5 text-sm text-[var(--muted)]">加载中...</p>
         ) : (
-          <table className="mt-4 w-full border-collapse text-sm">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="text-left">
-                <th className="border-b border-[var(--stroke)] py-2">名称</th>
-                <th className="border-b border-[var(--stroke)] py-2">官网</th>
-                <th className="border-b border-[var(--stroke)] py-2">封面</th>
-                <th className="border-b border-[var(--stroke)] py-2">启用</th>
-                <th className="border-b border-[var(--stroke)] py-2">操作</th>
+                <th className="border-b border-[var(--stroke)] py-3">名称</th>
+                <th className="border-b border-[var(--stroke)] py-3">官网</th>
+                <th className="border-b border-[var(--stroke)] py-3">封面</th>
+                <th className="border-b border-[var(--stroke)] py-3">启用</th>
+                <th className="border-b border-[var(--stroke)] py-3">操作</th>
               </tr>
             </thead>
             <tbody>
               {studios.map((studio) => (
                 <tr key={studio.id}>
-                  <td className="border-b border-[var(--stroke)] py-2">
+                  <td className="border-b border-[var(--stroke)] py-3">
                     {studio.name}
                   </td>
-                  <td className="border-b border-[var(--stroke)] py-2">
+                  <td className="border-b border-[var(--stroke)] py-3">
                     {studio.website_url || "-"}
                   </td>
-                  <td className="border-b border-[var(--stroke)] py-2">
+                  <td className="border-b border-[var(--stroke)] py-3">
                     {studio.cover_url ? "已设置" : "未设置"}
                   </td>
-                  <td className="border-b border-[var(--stroke)] py-2">
+                  <td className="border-b border-[var(--stroke)] py-3">
                     {studio.is_active ? "是" : "否"}
                   </td>
-                  <td className="border-b border-[var(--stroke)] py-2">
+                  <td className="border-b border-[var(--stroke)] py-3">
                     <div className="flex gap-2">
                       <button
                         className="btn-text"
@@ -348,7 +348,7 @@ export default function StudiosAdminPage() {
               ))}
               {studios.length === 0 && (
                 <tr>
-                  <td className="py-4 text-sm text-[var(--muted)]" colSpan={5}>
+                  <td className="py-5 text-sm text-[var(--muted)]" colSpan={5}>
                     暂无工作室
                   </td>
                 </tr>

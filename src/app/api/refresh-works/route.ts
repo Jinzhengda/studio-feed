@@ -90,6 +90,7 @@ function isUsableMediaUrl(input: string | null | undefined) {
   if (!input) return false;
   if (input.startsWith("data:image")) return false;
   if (input.includes("A17_social.png")) return false;
+  if (input.includes("pentagram_social.png")) return false;
   if (
     input.includes(
       "e2ee60a94e1ccaae172c0c8304c59572d6316bb2-1200x630.png"
@@ -196,6 +197,10 @@ function improveImageUrlQuality(input: string) {
       url.searchParams.set("q", "90");
       url.searchParams.set("auto", "format");
     } else if (url.hostname.includes(".imgix.net")) {
+      url.searchParams.delete("h");
+      url.searchParams.delete("dpr");
+      url.searchParams.delete("blur");
+      url.searchParams.delete("crop");
       const w = Number(url.searchParams.get("w") || "0");
       if (!w || w < 1600) url.searchParams.set("w", "1920");
       url.searchParams.set("q", "90");
@@ -207,6 +212,9 @@ function improveImageUrlQuality(input: string) {
       if (!url.searchParams.get("auto")) {
         url.searchParams.set("auto", "format,compress");
       }
+    } else if (url.hostname === "image.mux.com") {
+      const width = Number(url.searchParams.get("width") || "0");
+      if (!width || width < 1600) url.searchParams.set("width", "1600");
     } else if (url.hostname.includes("res.cloudinary.com")) {
       // insert quality/width transformations into Cloudinary URL path
       const parts = url.pathname.split("/upload/");
@@ -843,6 +851,7 @@ async function scrapePentagram(url: string): Promise<ScrapedWork[]> {
     const href = $link.attr("href") || "";
 
     if (!href) return;
+    if (!/\/work\/[^/?#]+/.test(href)) return;
 
     const workUrl = normalizeUrl(toAbsolute(url, href));
 
