@@ -205,24 +205,22 @@ export default function StudiosAdminPage() {
           {toast}
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">工作室管理</h1>
-        <button type="button" className="btn" onClick={openCreateForm}>
-          新增工作室
-        </button>
-      </div>
-
       <div>
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-medium">工作室列表</h2>
-          <button
-            type="button"
-            className="btn"
-            onClick={refreshDemo}
-            disabled={refreshing}
-          >
-            {refreshing ? "刷新中..." : "刷新数据"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button type="button" className="btn" onClick={openCreateForm}>
+              新增工作室
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={refreshDemo}
+              disabled={refreshing}
+            >
+              {refreshing ? "刷新中..." : "刷新数据"}
+            </button>
+          </div>
         </div>
         {message && !isFormOpen && (
           <p className="mb-6 whitespace-pre-wrap text-sm text-[var(--muted)]">
@@ -290,7 +288,7 @@ export default function StudiosAdminPage() {
 
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 py-8">
-          <div className="flex max-h-[calc(100vh-4rem)] w-full max-w-2xl flex-col border border-[var(--stroke)] bg-white p-5 shadow-xl">
+          <div className="flex max-h-[calc(100vh-4rem)] w-full max-w-2xl flex-col border border-[var(--stroke)] bg-[var(--card)] p-5 shadow-xl">
             <div className="mb-4 flex shrink-0 items-center justify-between">
               <h2 className="text-lg font-medium">
                 {form.id ? "编辑工作室" : "新增工作室"}

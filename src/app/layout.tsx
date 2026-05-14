@@ -1,7 +1,6 @@
 import "./globals.css";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import MobileMenu from "@/components/MobileMenu";
+import HeaderUserMenu from "@/components/HeaderUserMenu";
 
 export const metadata = {
   title: "studio-feed",
@@ -13,31 +12,27 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-
-  let avatarUrl = null;
-  if (data.user) {
-    try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", data.user.id)
-        .single();
-      avatarUrl = profile?.avatar_url;
-    } catch {
-      // 忽略头像加载错误
-    }
-  }
-
   return (
-    <html lang="zh">
+    <html lang="zh" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var theme = localStorage.getItem("studio-feed-theme");
+                var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                if (theme === "dark" || (!theme && prefersDark)) {
+                  document.documentElement.classList.add("dark");
+                }
+              } catch {}
+            `,
+          }}
+        />
         <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
       </head>
       <body>
         <div className="min-h-screen flex flex-col">
-          <header className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-white/70 backdrop-blur">
+          <header className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-[var(--header-bg)] backdrop-blur">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
               <Link href="/" className="text-lg font-semibold">
                 studio-feed
@@ -47,19 +42,14 @@ export default async function RootLayout({
                   <Link href="/about">About</Link>
                   <Link href="/contact">Contact</Link>
                 </nav>
-                <div className="md:hidden">
-                  <MobileMenu isAuthed={!!data.user} avatarUrl={avatarUrl} showNavLinks={true} />
-                </div>
-                <div className="hidden md:block">
-                  <MobileMenu isAuthed={!!data.user} avatarUrl={avatarUrl} showNavLinks={false} />
-                </div>
+                <HeaderUserMenu />
               </div>
             </div>
           </header>
 
           <main className="flex-1">{children}</main>
 
-          <footer className="border-t border-[var(--stroke)] bg-white/60">
+          <footer className="border-t border-[var(--stroke)] bg-[var(--footer-bg)]">
             <div className="mx-auto max-w-6xl px-6 py-6 text-sm text-[var(--muted)]">
               studio-feed © 2026
             </div>

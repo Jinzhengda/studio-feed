@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import MasonryGrid from "@/components/MasonryGrid";
+import Link from "next/link";
 
 export const revalidate = 0;
 
@@ -55,6 +56,31 @@ const demoWorks: WorkCard[] = Array.from({ length: 10 }).map((_, i) => {
 
 export default async function HomePage() {
   const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+
+  if (!userData.user) {
+    return (
+      <section className="mx-auto flex min-h-[calc(100vh-9rem)] max-w-6xl items-center px-6 py-12">
+        <div className="max-w-2xl">
+          <p className="text-sm text-[var(--muted)]">studio-feed</p>
+          <h1 className="mt-4 text-4xl font-medium leading-tight sm:text-6xl">
+            设计工作室作品流
+          </h1>
+          <p className="mt-6 max-w-xl text-base leading-7 text-[var(--muted)] sm:text-lg">
+            登录后查看聚合的工作室作品、封面和更新时间。这里会保持安静，只把内容留给已登录用户。
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link href="/login" className="btn">
+              登录查看
+            </Link>
+            <Link href="/about" className="btn-text">
+              About
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   // 计算半年前的日期
   const sixMonthsAgo = new Date();

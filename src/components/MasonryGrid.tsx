@@ -73,7 +73,7 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
-          className="w-full rounded-none border border-[var(--stroke)] bg-white px-3 py-2.5 text-sm sm:max-w-sm"
+          className="w-full rounded-none border border-[var(--stroke)] bg-[var(--card)] px-3 py-2.5 text-sm sm:max-w-sm"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索作品或工作室"
@@ -81,10 +81,8 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
         <div className="inline-flex w-fit gap-2 text-sm">
           <button
             type="button"
-            className={`rounded-full px-3 py-1.5 transition-colors ${
-              sortMode === "time"
-                ? "bg-black text-white"
-                : "text-[var(--muted)] hover:bg-black/5"
+            className={`toggle-pill ${
+              sortMode === "time" ? "toggle-pill-active" : "toggle-pill-idle"
             }`}
             onClick={() => chooseSortMode("time")}
           >
@@ -92,10 +90,8 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
           </button>
           <button
             type="button"
-            className={`rounded-full px-3 py-1.5 transition-colors ${
-              sortMode === "random"
-                ? "bg-black text-white"
-                : "text-[var(--muted)] hover:bg-black/5"
+            className={`toggle-pill ${
+              sortMode === "random" ? "toggle-pill-active" : "toggle-pill-idle"
             }`}
             onClick={() => chooseSortMode("random")}
           >

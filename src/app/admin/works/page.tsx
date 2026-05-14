@@ -117,8 +117,8 @@ export default function WorksAdminPage() {
             <button
               key={item}
               type="button"
-              className={`rounded-full px-3 py-1.5 transition-colors ${
-                visibility === item ? "bg-black text-white" : "text-[var(--muted)] hover:bg-black/5"
+              className={`toggle-pill ${
+                visibility === item ? "toggle-pill-active" : "toggle-pill-idle"
               }`}
               onClick={() => setVisibility(item)}
             >
