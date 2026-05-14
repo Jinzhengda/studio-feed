@@ -35,6 +35,7 @@ export default function StudiosAdminPage() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   function showToast(text: string) {
     setToast(text);
@@ -75,6 +76,32 @@ export default function StudiosAdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function openCreateForm() {
+    setForm({ ...emptyForm });
+    setMessage("");
+    setIsFormOpen(true);
+  }
+
+  function openEditForm(studio: Studio) {
+    setForm({
+      id: studio.id,
+      name: studio.name,
+      website_url: studio.website_url || "",
+      feed_url: studio.feed_url || "",
+      cover_url: studio.cover_url || "",
+      location: studio.location || "",
+      tags: studio.tags || "",
+      is_active: studio.is_active,
+    });
+    setMessage("");
+    setIsFormOpen(true);
+  }
+
+  function closeForm() {
+    setIsFormOpen(false);
+    setForm({ ...emptyForm });
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
@@ -97,15 +124,16 @@ export default function StudiosAdminPage() {
           .eq("id", form.id);
 
         if (error) throw error;
-        setMessage("已更新");
+        showToast("已更新");
       } else {
         const { error } = await supabase.from("studios").insert(payload);
 
         if (error) throw error;
-        setMessage("已新增");
+        showToast("已新增");
       }
 
       setForm({ ...emptyForm });
+      setIsFormOpen(false);
       loadStudios();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "操作失败");
@@ -177,104 +205,12 @@ export default function StudiosAdminPage() {
           {toast}
         </div>
       )}
-      <h1 className="text-2xl font-semibold">工作室管理</h1>
-
-      <form
-        onSubmit={handleSave}
-        className="grid grid-cols-1 gap-6"
-      >
-        <div>
-          <label className="text-sm">名称</label>
-          <input
-            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-        </div>
-
-        <div>
-          <label className="text-sm">官网</label>
-          <input
-            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
-            value={form.website_url}
-            onChange={(e) => setForm({ ...form, website_url: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="text-sm">RSS / 抓取地址</label>
-          <input
-            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
-            value={form.feed_url}
-            onChange={(e) => setForm({ ...form, feed_url: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="text-sm">封面图 URL（抓取失败时用）</label>
-          <input
-            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
-            value={form.cover_url}
-            onChange={(e) => setForm({ ...form, cover_url: e.target.value })}
-            placeholder="https://example.com/cover.jpg"
-          />
-          <CoverUploader
-            value={form.cover_url}
-            onChange={(url) => saveCoverUrl(url)}
-          />
-          {!form.id && (
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              新建工作室时，上传后请点击“新增工作室”保存。
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label className="text-sm">位置</label>
-          <input
-            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
-            value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="text-sm">标签（逗号分隔）</label>
-          <input
-            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2.5"
-            value={form.tags}
-            onChange={(e) => setForm({ ...form, tags: e.target.value })}
-          />
-        </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.is_active}
-            onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-          />
-          是否启用
-        </label>
-
-        <div className="flex gap-3 pt-1">
-          <button
-            type="submit"
-            className="btn"
-          >
-            {form.id ? "保存" : "新增工作室"}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setForm({ ...emptyForm })}
-          >
-            清空表单
-          </button>
-        </div>
-
-        {message && <p className="text-sm text-[var(--muted)]">{message}</p>}
-      </form>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">工作室管理</h1>
+        <button type="button" className="btn" onClick={openCreateForm}>
+          新增工作室
+        </button>
+      </div>
 
       <div>
         <div className="mb-6 flex items-center justify-between">
@@ -288,6 +224,11 @@ export default function StudiosAdminPage() {
             {refreshing ? "刷新中..." : "刷新数据"}
           </button>
         </div>
+        {message && !isFormOpen && (
+          <p className="mb-6 whitespace-pre-wrap text-sm text-[var(--muted)]">
+            {message}
+          </p>
+        )}
 
         {loading ? (
           <p className="mt-5 text-sm text-[var(--muted)]">加载中...</p>
@@ -321,18 +262,7 @@ export default function StudiosAdminPage() {
                     <div className="flex gap-2">
                       <button
                         className="btn-text"
-                        onClick={() =>
-                          setForm({
-                            id: studio.id,
-                            name: studio.name,
-                            website_url: studio.website_url || "",
-                            feed_url: studio.feed_url || "",
-                            cover_url: studio.cover_url || "",
-                            location: studio.location || "",
-                            tags: studio.tags || "",
-                            is_active: studio.is_active,
-                          })
-                        }
+                        onClick={() => openEditForm(studio)}
                       >
                         编辑
                       </button>
@@ -357,6 +287,123 @@ export default function StudiosAdminPage() {
           </table>
         )}
       </div>
+
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 py-8">
+          <div className="flex max-h-[calc(100vh-4rem)] w-full max-w-2xl flex-col border border-[var(--stroke)] bg-white p-5 shadow-xl">
+            <div className="mb-4 flex shrink-0 items-center justify-between">
+              <h2 className="text-lg font-medium">
+                {form.id ? "编辑工作室" : "新增工作室"}
+              </h2>
+              <button type="button" className="btn-text" onClick={closeForm}>
+                关闭
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSave}
+              className="grid grid-cols-1 gap-4 overflow-y-auto pr-2"
+            >
+              <div>
+                <label className="text-sm">名称</label>
+                <input
+                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm">官网</label>
+                <input
+                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+                  value={form.website_url}
+                  onChange={(e) =>
+                    setForm({ ...form, website_url: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="text-sm">RSS / 抓取地址</label>
+                <input
+                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+                  value={form.feed_url}
+                  onChange={(e) => setForm({ ...form, feed_url: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm">封面图 URL（抓取失败时用）</label>
+                <input
+                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+                  value={form.cover_url}
+                  onChange={(e) => setForm({ ...form, cover_url: e.target.value })}
+                  placeholder="https://example.com/cover.jpg"
+                />
+                <CoverUploader
+                  value={form.cover_url}
+                  onChange={(url) => saveCoverUrl(url)}
+                />
+                {!form.id && (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    新建工作室时，上传后请点击“新增工作室”保存。
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm">位置</label>
+                <input
+                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm">标签（逗号分隔）</label>
+                <input
+                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+                  value={form.tags}
+                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={(e) =>
+                    setForm({ ...form, is_active: e.target.checked })
+                  }
+                />
+                是否启用
+              </label>
+
+              <div className="flex gap-3 pt-1">
+                <button type="submit" className="btn">
+                  {form.id ? "保存" : "新增工作室"}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setForm({ ...emptyForm })}
+                >
+                  清空表单
+                </button>
+              </div>
+
+              {message && (
+                <p className="whitespace-pre-wrap text-sm text-[var(--muted)]">
+                  {message}
+                </p>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

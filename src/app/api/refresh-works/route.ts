@@ -75,7 +75,7 @@ function normalizeMediaUrl(base: string, input: string) {
 
   try {
     const url = new URL(absolute);
-    if (url.pathname === "/_vercel/image") {
+    if (url.pathname === "/_vercel/image" || url.pathname === "/_next/image") {
       const source = url.searchParams.get("url");
       if (source) return improveImageUrlQuality(source);
     }
@@ -91,6 +91,25 @@ function isUsableMediaUrl(input: string | null | undefined) {
   if (input.startsWith("data:image")) return false;
   if (input.includes("A17_social.png")) return false;
   if (input.includes("pentagram_social.png")) return false;
+  if (input.includes("37df6095d115ceb716614cbdf051878398d4bd2a-640x640.jpg")) {
+    return false;
+  }
+  if (input.includes("2496f8b08dad6c0b1ebee0ece7f60b50861de478-640x640.jpg")) {
+    return false;
+  }
+  if (input.includes("b8ab1e61cb44fabfd0c74bfc973655ebbbc95eea-512x512.png")) {
+    return false;
+  }
+  if (input.includes("f23de3fda696f1274470d753c02a20ee39586685-640x640.png")) {
+    return false;
+  }
+  if (
+    input.includes(
+      "5ca8fb4194fcd82fbe6b83b6d701f1f8cfc7f163-1200x630.png"
+    )
+  ) {
+    return false;
+  }
   if (
     input.includes(
       "e2ee60a94e1ccaae172c0c8304c59572d6316bb2-1200x630.png"
@@ -829,6 +848,24 @@ async function scrapeGenericWithFallback(url: string): Promise<ScrapedWork[]> {
     if (merged.size >= 12) break;
   }
 
+  if (merged.size < 12) {
+    for (const candidate of candidates) {
+      let embeddedItems: ScrapedWork[] = [];
+      try {
+        embeddedItems = await scrapeEmbeddedWorkFeed(candidate, { maxItems: 12 });
+      } catch {
+        embeddedItems = [];
+      }
+
+      for (const item of embeddedItems) {
+        const key = normalizeUrl(item.workUrl).toLowerCase();
+        if (!merged.has(key)) merged.set(key, item);
+      }
+
+      if (merged.size >= 12) break;
+    }
+  }
+
   if (merged.size === 0) {
     const sitemapItems = await scrapeFromSitemap(url);
     for (const item of sitemapItems) {
@@ -911,6 +948,93 @@ async function scrapeSDL(url: string): Promise<ScrapedWork[]> {
   });
 
   return items.slice(0, 24);
+}
+
+function decodeEscapedNextData(html: string) {
+  return html.replace(/\\"/g, '"').replace(/\\u0026/g, "&");
+}
+
+function extractEmbeddedThumbnail(block: string) {
+  const patterns = [
+    /"landscapeThumbnail":\{"_type":"image"[\s\S]*?"url":"(https:\/\/cdn\.sanity\.io[^"]+)/,
+    /"mediumThumbnail":\{"_type":"image"[\s\S]*?"url":"(https:\/\/cdn\.sanity\.io[^"]+)/,
+    /"heroLandscape":\{"_type":"image"[\s\S]*?"url":"(https:\/\/cdn\.sanity\.io[^"]+)/,
+    /"squareThumbnail":[\s\S]*?"url":"(https:\/\/cdn\.sanity\.io[^"]+)/,
+    /"thumbnail":[\s\S]*?"url":"(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp|gif|avif)(?:\?[^"]*)?)/,
+    /"image":[\s\S]*?"url":"(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp|gif|avif)(?:\?[^"]*)?)/,
+    /"cover":[\s\S]*?"url":"(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp|gif|avif)(?:\?[^"]*)?)/,
+    /"url":"(https:\/\/cdn\.sanity\.io[^"]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = block.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
+async function scrapeEmbeddedWorkFeed(
+  url: string,
+  options: {
+    listPath?: string;
+    maxItems?: number;
+    hrefPattern?: RegExp;
+  } = {}
+): Promise<ScrapedWork[]> {
+  const workListUrl = options.listPath ? toAbsolute(url, options.listPath) : url;
+  const html = await fetchHtml(workListUrl);
+  const data = decodeEscapedNextData(html);
+  const feedStart = data.indexOf('"feed":[{"_key"');
+  const source = feedStart >= 0 ? data.slice(feedStart) : data;
+  const hrefPattern =
+    options.hrefPattern ||
+    /\/(?:projects|project|work|works|case-studies|case|clients)\/[^"]+/;
+  const matches = [
+    ...source.matchAll(
+      /"title":"([^"]+)"[\s\S]{0,360}?"link":"([^"]+)"/g
+    ),
+  ];
+  const items: ScrapedWork[] = [];
+  const seen = new Set<string>();
+
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i];
+    const title = (match[1] || "").trim();
+    const href = match[2] || "";
+    if (!hrefPattern.test(href)) continue;
+    if (!title || !href || IGNORE_TITLES.has(title.toLowerCase())) continue;
+
+    const workUrl = normalizeUrl(toAbsolute(workListUrl, href));
+    const key = workUrl.toLowerCase();
+    if (seen.has(key)) continue;
+
+    const start = match.index || 0;
+    const end = matches[i + 1]?.index || start + 5000;
+    const block = source.slice(start, Math.min(end, start + 5000));
+    const thumbnailUrl =
+      firstUsableMediaUrl(workListUrl, [extractEmbeddedThumbnail(block)]) ||
+      placeholderImage(workUrl);
+
+    seen.add(key);
+    items.push({
+      title,
+      workUrl,
+      thumbnailUrl,
+    });
+
+    if (items.length >= (options.maxItems || 24)) break;
+  }
+
+  return items;
+}
+
+async function scrapeKoto(url: string): Promise<ScrapedWork[]> {
+  return scrapeEmbeddedWorkFeed(url, {
+    listPath: "/work",
+    maxItems: 24,
+    hrefPattern: /^\/projects\/[^/?#]+/,
+  });
 }
 
 async function scrapeKIGI(): Promise<ScrapedWork[]> {
@@ -1056,6 +1180,7 @@ async function scrapeByUrl(url: string): Promise<ScrapedWork[]> {
   if (url.includes("portorocha.com")) return scrapePortoRocha(url);
   if (url.includes("pentagram.com")) return scrapePentagram(url);
   if (url.includes("stockholmdesignlab.se")) return scrapeSDL(url);
+  if (url.includes("koto.com")) return scrapeKoto(url);
   if (url.includes("area17.com")) return scrapeArea17(url);
   if (url.includes("wearecollins.com")) return scrapeCollins(url);
 

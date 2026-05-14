@@ -18,6 +18,12 @@ export default function UserMenu({
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!avatarUrl) return;
+    const image = new Image();
+    image.src = avatarUrl;
+  }, [avatarUrl]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -54,7 +60,12 @@ export default function UserMenu({
         className="h-10 w-10 rounded-full overflow-hidden border-2 border-[var(--stroke)] hover:border-black transition-colors"
       >
         {avatarUrl ? (
-          <img src={avatarUrl} alt="User avatar" className="h-full w-full object-cover" />
+          <img
+            src={avatarUrl}
+            alt="User avatar"
+            className="h-full w-full object-cover"
+            loading="eager"
+          />
         ) : (
           <div className="h-full w-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm font-medium">
             U
@@ -62,8 +73,11 @@ export default function UserMenu({
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-lg border border-[var(--stroke)] bg-white shadow-lg py-2">
+      <div
+        className={`absolute right-0 mt-2 w-48 rounded-lg border border-[var(--stroke)] bg-white py-2 shadow-lg transition-opacity ${
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      >
           <Link
             href="/admin/studios"
             className="block px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
@@ -92,8 +106,7 @@ export default function UserMenu({
           >
             登出
           </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -20,6 +20,12 @@ export default function MobileMenu({
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!avatarUrl) return;
+    const image = new Image();
+    image.src = avatarUrl;
+  }, [avatarUrl]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -55,8 +61,11 @@ export default function MobileMenu({
         </svg>
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-lg border border-[var(--stroke)] bg-white shadow-lg py-2 z-50">
+      <div
+        className={`absolute right-0 z-50 mt-2 w-48 rounded-lg border border-[var(--stroke)] bg-white py-2 shadow-lg transition-opacity ${
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      >
           {showNavLinks && (
             <>
               <Link
@@ -81,7 +90,12 @@ export default function MobileMenu({
             <>
               <div className="px-4 py-2 flex items-center gap-2">
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
+                  <img
+                    src={avatarUrl}
+                    alt="Avatar"
+                    className="h-8 w-8 rounded-full object-cover"
+                    loading="eager"
+                  />
                 ) : (
                   <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-medium">
                     U
@@ -128,8 +142,7 @@ export default function MobileMenu({
               登录
             </Link>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
