@@ -107,18 +107,18 @@ export default function WorksAdminPage() {
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
-          className="w-full rounded-none border border-[var(--stroke)] px-3 py-2.5 text-sm sm:max-w-sm"
+          className="h-11 w-full rounded-full border border-[var(--stroke)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:max-w-sm"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索标题、工作室或链接"
         />
-        <div className="inline-flex w-fit gap-2 text-sm">
+        <div className="inline-flex w-fit items-center gap-4 text-sm">
           {(["all", "visible", "hidden"] as const).map((item) => (
             <button
               key={item}
               type="button"
-              className={`toggle-pill ${
-                visibility === item ? "toggle-pill-active" : "toggle-pill-idle"
+              className={`home-sort-pill ${
+                visibility === item ? "home-sort-pill-active" : "home-sort-pill-idle"
               }`}
               onClick={() => setVisibility(item)}
             >

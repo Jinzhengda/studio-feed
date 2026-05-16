@@ -70,7 +70,7 @@ export default async function HomePage() {
             登录后查看聚合的工作室作品、封面和更新时间。这里会保持安静，只把内容留给已登录用户。
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link href="/login" className="btn">
+            <Link href="/login" className="btn-primary">
               登录查看
             </Link>
             <Link href="/about" className="btn-text">
@@ -109,7 +109,7 @@ export default async function HomePage() {
         created_at: w.created_at || new Date().toISOString(),
         first_seen_at: w.first_seen_at || new Date().toISOString(),
       };
-    }) || demoWorks;
+    }).filter((work) => work.studio !== "立入禁止") || demoWorks;
 
   // 去重：根据 work_url 去重
   const uniqueWorks = works.filter((work, index, self) =>

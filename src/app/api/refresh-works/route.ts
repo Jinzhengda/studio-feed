@@ -28,9 +28,10 @@ function normalizeUrl(input: string) {
     const host = url.host.toLowerCase();
     let path = url.pathname.replace(/\/+$/, "");
     if (path === "") path = "/";
-    url.search = "";
+    const syntheticItem = url.searchParams.get("sf_item");
+    url.search = syntheticItem ? `?sf_item=${encodeURIComponent(syntheticItem)}` : "";
     url.hash = "";
-    return `${url.protocol}//${host}${path}`;
+    return `${url.protocol}//${host}${path}${url.search}`;
   } catch {
     return input.trim().replace(/\/+$/, "");
   }
@@ -263,6 +264,25 @@ function placeholderImage(seed: string) {
     .slice(0, 24);
   const svg = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${w}\" height=\"${h}\" viewBox=\"0 0 ${w} ${h}\">\n  <rect width=\"100%\" height=\"100%\" fill=\"#f2f2f2\" />\n  <rect x=\"24\" y=\"24\" width=\"${w - 48}\" height=\"${h - 48}\" fill=\"#ffffff\" stroke=\"#e5e5e5\" />\n  <text x=\"48\" y=\"${Math.min(h - 48, 120)}\" font-family=\"sans-serif\" font-size=\"22\" fill=\"#999\">${label}</text>\n</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function humanizeSlug(input: string) {
+  return decodeURIComponent(input)
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+function appendSyntheticItem(url: string, itemId: string | number) {
+  try {
+    const next = new URL(url);
+    next.searchParams.set("sf_item", String(itemId));
+    return normalizeUrl(next.toString());
+  } catch {
+    return normalizeUrl(url);
+  }
 }
 
 async function fetchHtml(url: string) {
@@ -813,6 +833,110 @@ async function scrapeFromSitemap(url: string): Promise<ScrapedWork[]> {
   return items;
 }
 
+async function scrapeCargoSitemap(
+  url: string,
+  options: { maxItems?: number; skipSlugs?: string[] } = {}
+): Promise<ScrapedWork[]> {
+  const origin = new URL(url).origin;
+  const xml = await fetchHtml(`${origin}/sitemap.xml`);
+  const $xml = load(xml, { xmlMode: true });
+  const items: ScrapedWork[] = [];
+  const seen = new Set<string>();
+  const skipSlugs = new Set(
+    (options.skipSlugs || ["index", "info", "portfolio", "about", "contact"]).map((slug) =>
+      slug.toLowerCase()
+    )
+  );
+
+  $xml("url").each((_, el) => {
+    if (items.length >= (options.maxItems || 24)) return;
+
+    const $url = $xml(el);
+    const rawLoc = $url.children("loc").first().text().trim();
+    if (!rawLoc) return;
+
+    const workUrl = normalizeUrl(rawLoc);
+    const key = workUrl.toLowerCase();
+    if (seen.has(key) || !workUrl.startsWith(origin)) return;
+
+    const slug = workUrl.split("/").filter(Boolean).pop() || "";
+    if (!slug || skipSlugs.has(slug.toLowerCase())) return;
+
+    const imageLoc = $url.find("image\\:loc, loc").last().text().trim();
+    if (!imageLoc || imageLoc === rawLoc) return;
+
+    const title = humanizeSlug(slug);
+    if (!title || IGNORE_TITLES.has(title.toLowerCase())) return;
+
+    seen.add(key);
+    items.push({
+      title,
+      workUrl,
+      thumbnailUrl: improveImageUrlQuality(imageLoc),
+    });
+  });
+
+  return items;
+}
+
+type CargoImage = {
+  id?: string | number;
+  hash?: string;
+  name?: string;
+  width?: number;
+  height?: number;
+};
+
+async function scrapeCargoPageImages(
+  url: string,
+  options: { maxItems?: number; titlePrefix?: string } = {}
+): Promise<ScrapedWork[]> {
+  const html = await fetchHtml(url);
+  const pageId =
+    html.match(/"page_id"\s*:\s*"?(\d+)"?/)?.[1] ||
+    html.match(/page_id=(\d+)/)?.[1] ||
+    "";
+
+  if (!pageId) return [];
+
+  const origin = new URL(url).origin;
+  const res = await fetch(`${origin}/_api/v0/page/${pageId}`, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  const images: CargoImage[] = Array.isArray(data?.images) ? data.images : [];
+  const items: ScrapedWork[] = [];
+
+  for (const image of images) {
+    if (items.length >= (options.maxItems || 12)) break;
+    if (!image.hash || !image.name) continue;
+    if ((image.width || 0) < 400 || (image.height || 0) < 300) continue;
+
+    const imageUrl = `https://freight.cargo.site/t/original/i/${image.hash}/${image.name}`;
+    const fallbackNumber = items.length + 1;
+    const fileTitle = humanizeSlug(image.name).replace(/^\d+\s*/, "");
+    const title =
+      !fileTitle || /^work\s*\d*$/i.test(fileTitle) || /^\d+$/.test(fileTitle)
+        ? `${options.titlePrefix || "Work"} ${fallbackNumber}`
+        : fileTitle;
+
+    items.push({
+      title: title.length < 3 ? `${options.titlePrefix || "Work"} ${fallbackNumber}` : title,
+      workUrl: appendSyntheticItem(url, image.id || image.hash),
+      thumbnailUrl: improveImageUrlQuality(imageUrl),
+    });
+  }
+
+  return items;
+}
+
 async function scrapeGenericWithFallback(url: string): Promise<ScrapedWork[]> {
   const origin = new URL(url).origin;
   const candidatePaths = [
@@ -1174,6 +1298,15 @@ async function scrapeCollins(url: string): Promise<ScrapedWork[]> {
 
 async function scrapeByUrl(url: string): Promise<ScrapedWork[]> {
   // 优先使用专门的抓取逻辑
+  if (url.includes("ablackcover.com")) {
+    return scrapeCargoSitemap(url, {
+      maxItems: 24,
+      skipSlugs: ["index", "info", "portfolio"],
+    });
+  }
+  if (url.includes("wangzhihong.com")) {
+    return scrapeCargoPageImages(url, { maxItems: 12, titlePrefix: "Wang Zhihong" });
+  }
   if (url.includes("u-d-l.com")) return scrapeUDL(url);
   if (url.includes("ki-gi.com")) return scrapeKIGI();
   if (url.includes("ndc.co.jp")) return scrapeNDC(url);
@@ -1270,10 +1403,12 @@ async function processStudio(
       continue;
     }
 
-    const ogImage = await extractBestMedia(item.workUrl);
+    const scrapedThumb =
+      isUsableMediaUrl(item.thumbnailUrl) ? item.thumbnailUrl : null;
+    const ogImage = scrapedThumb ? null : await extractBestMedia(item.workUrl);
     const thumb =
+      scrapedThumb ||
       (isUsableMediaUrl(ogImage) ? ogImage : null) ||
-      (isUsableMediaUrl(item.thumbnailUrl) ? item.thumbnailUrl : null) ||
       placeholderImage(item.workUrl);
     const published =
       normalizeDate(item.publishedAt || null) ||

@@ -15,28 +15,35 @@ export default function HeaderUserMenu() {
     let isMounted = true;
 
     async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      if (!isMounted) return;
-      setIsAuthed(!!user);
+        if (!isMounted) return;
+        setIsAuthed(!!user);
 
-      if (!user) {
+        if (!user) {
+          setAvatarUrl(null);
+          setLoading(false);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .single();
+
+        if (!isMounted) return;
+        setAvatarUrl(profile?.avatar_url || null);
+        setLoading(false);
+      } catch {
+        if (!isMounted) return;
+        setIsAuthed(false);
         setAvatarUrl(null);
         setLoading(false);
-        return;
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", user.id)
-        .single();
-
-      if (!isMounted) return;
-      setAvatarUrl(profile?.avatar_url || null);
-      setLoading(false);
     }
 
     loadUser();
@@ -44,7 +51,7 @@ export default function HeaderUserMenu() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      loadUser();
+      void loadUser();
     });
 
     return () => {

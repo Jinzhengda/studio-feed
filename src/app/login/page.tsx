@@ -47,7 +47,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/admin/studios");
+    router.push("/");
   }
 
   return (
@@ -70,7 +70,7 @@ export default function LoginPage() {
             name="studio-feed-email"
             autoComplete="off"
             readOnly={!emailEditable}
-            className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+            className="mt-2 w-full rounded-full border border-[var(--stroke)] px-4 py-2.5 outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onFocus={() => setEmailEditable(true)}
@@ -88,7 +88,7 @@ export default function LoginPage() {
               name="studio-feed-passcode"
               autoComplete="new-password"
               readOnly={!passwordEditable}
-              className="w-full rounded-none border border-[var(--stroke)] px-3 py-2 pr-11"
+              className="w-full rounded-full border border-[var(--stroke)] px-4 py-2.5 pr-11 outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setPasswordEditable(true)}
@@ -143,7 +143,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-8 inline-flex w-full items-center justify-center rounded-full border border-black bg-black px-4 py-2 text-sm text-white transition-all duration-150 hover:bg-black/80 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-primary mt-8 w-full"
         >
           {loading ? "登录中..." : "登录"}
         </button>

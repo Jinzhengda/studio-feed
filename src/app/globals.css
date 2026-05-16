@@ -35,12 +35,6 @@ body {
   font-weight: 400;
 }
 
-a,
-button,
-input {
-  color: inherit;
-}
-
 input,
 textarea,
 select {
@@ -65,21 +59,41 @@ b,
   font-weight: 500;
 }
 
+@layer base {
+  a,
+  button,
+  input {
+    color: inherit;
+  }
+}
+
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center rounded-full border border-black/80 bg-white px-4 py-2 text-sm transition-all duration-150 hover:bg-black/5 active:translate-y-px active:bg-black/10;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full border border-black bg-black px-4 py-2 text-sm text-white transition-all duration-150 hover:bg-black/80 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-text {
     @apply inline-flex items-center gap-1 text-sm underline-offset-4 transition-all duration-150 hover:underline active:translate-y-px;
   }
   .toggle-pill {
-    @apply rounded-full px-3 py-1.5 transition-colors;
+    @apply border border-transparent px-3 py-1.5 transition-colors;
   }
   .toggle-pill-active {
-    @apply bg-black text-white;
+    @apply border-black bg-white text-black;
   }
   .toggle-pill-idle {
-    @apply text-[var(--muted)] hover:bg-black/5;
+    @apply text-[var(--muted)] hover:border-[var(--stroke)] hover:bg-[var(--hover)];
+  }
+  .home-sort-pill {
+    @apply inline-flex h-11 items-center justify-center rounded-full border border-transparent px-4 text-sm leading-none transition-colors;
+  }
+  .home-sort-pill-active {
+    @apply border-black bg-black text-white;
+  }
+  .home-sort-pill-idle {
+    @apply px-2 text-[var(--ink)] hover:bg-black/5;
   }
   .group:hover .group-hover\:scale-103 {
     transform: scale(1.03);
@@ -96,11 +110,51 @@ b,
   background: var(--hover);
 }
 
-.dark .toggle-pill-active {
+.dark .btn-primary {
+  border-color: #ffffff;
   background: #ffffff;
   color: #000000;
 }
 
+.dark .btn-primary:hover {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.dark .toggle-pill-active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
 .dark .toggle-pill-idle:hover {
   background: var(--hover);
+}
+
+.dark .home-sort-pill-active {
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #000000;
+}
+
+.dark .home-sort-pill-idle {
+  color: var(--ink);
+}
+
+.dark .home-sort-pill-idle:hover {
+  background: var(--hover);
+}
+
+.btn-primary,
+.home-sort-pill-active {
+  color: #ffffff !important;
+}
+
+.toggle-pill-active {
+  color: #000000 !important;
+}
+
+.dark .btn-primary,
+.dark .home-sort-pill-active,
+.dark .toggle-pill-active {
+  color: #000000 !important;
 }
