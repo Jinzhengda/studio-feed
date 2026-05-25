@@ -17,11 +17,6 @@ export default function MobileMenu({
   const router = useRouter();
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [isDark, setIsDark] = useState(
-    () =>
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("dark")
-  );
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,20 +47,11 @@ export default function MobileMenu({
     router.push("/login");
   }
 
-  function toggleTheme() {
-    setIsDark((current) => {
-      const next = !current;
-      document.documentElement.classList.toggle("dark", next);
-      window.localStorage.setItem("studio-feed-theme", next ? "dark" : "light");
-      return next;
-    });
-  }
-
   return (
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-[var(--stroke)] transition-colors hover:bg-black/5"
+        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#e5e5e5] transition-colors hover:bg-black/5"
         aria-label="Menu"
       >
         {avatarUrl ? (
@@ -81,7 +67,7 @@ export default function MobileMenu({
       </button>
 
       <div
-        className={`absolute right-0 z-50 mt-2 w-52 rounded-none border border-[var(--stroke)] bg-[var(--card)] py-2 shadow-lg transition-opacity ${
+        className={`absolute right-0 z-50 mt-2 w-[160px] rounded-none border border-[var(--stroke)] bg-[var(--card)] py-2 shadow-lg transition-opacity ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
@@ -122,29 +108,6 @@ export default function MobileMenu({
                 )}
                 <span className="text-sm text-[var(--muted)]">已登录</span>
               </div>
-              <hr className="my-2 border-[var(--stroke)]" />
-              <button
-                type="button"
-                className="flex w-full items-center justify-between px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--hover)]"
-                onClick={toggleTheme}
-              >
-                <span>暗色模式</span>
-                <span
-                  className={`relative h-5 w-9 rounded-full border transition-colors ${
-                    isDark
-                      ? "border-white bg-white"
-                      : "border-black/30 bg-white"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full transition-transform ${
-                      isDark
-                        ? "translate-x-4 bg-black"
-                        : "translate-x-1 bg-black"
-                    }`}
-                  />
-                </span>
-              </button>
               <hr className="my-2 border-[var(--stroke)]" />
               <Link
                 href="/admin/studios"

@@ -104,7 +104,7 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="btn cursor-pointer">
+            <label className="btn cursor-pointer rounded-none">
               {uploading ? "上传中..." : "上传头像"}
               <input
                 type="file"

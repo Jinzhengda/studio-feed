@@ -71,14 +71,14 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start sm:gap-4">
         <input
-          className="h-11 w-full rounded-full border border-[var(--stroke)] bg-[var(--card)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:max-w-sm"
+          className="h-10 w-full rounded-none border border-[var(--stroke)] bg-[var(--card)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:w-[240px]"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索作品或工作室"
         />
-        <div className="inline-flex w-fit items-center gap-4 text-sm">
+        <div className="inline-flex w-fit items-center gap-2 text-sm">
           <button
             type="button"
             className={`home-sort-pill ${
@@ -102,11 +102,11 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
 
       <div
         ref={containerRef}
-        className="grid gap-2 sm:gap-6"
+        className="grid gap-4"
         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
       >
         {columnWorks.map((columnItems, columnIndex) => (
-          <div key={columnIndex} className="flex flex-col gap-2 sm:gap-6">
+          <div key={columnIndex} className="flex flex-col gap-4">
             {columnItems.map((work) => (
               <a
                 key={work.id}

@@ -87,13 +87,74 @@ b,
     @apply text-[var(--muted)] hover:border-[var(--stroke)] hover:bg-[var(--hover)];
   }
   .home-sort-pill {
-    @apply inline-flex h-11 items-center justify-center rounded-full border border-transparent px-4 text-sm leading-none transition-colors;
+    @apply inline-flex h-[38px] w-20 items-center justify-center rounded-none border border-transparent px-2 text-sm leading-none transition-colors;
   }
   .home-sort-pill-active {
-    @apply border-black bg-black text-white;
+    @apply border-0 bg-[#f5f5f5] text-black;
   }
   .home-sort-pill-idle {
-    @apply px-2 text-[var(--ink)] hover:bg-black/5;
+    @apply px-4 text-[var(--ink)] hover:bg-black/5;
+  }
+  .brand-wordmark {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .theme-toggle {
+    display: inline-flex;
+    width: 84px;
+    min-width: 84px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 60px;
+    background: transparent;
+    padding: 0;
+    transition: opacity 150ms ease;
+  }
+  .theme-toggle-track {
+    box-sizing: border-box;
+    display: flex;
+    width: 84px;
+    height: 36px;
+    align-items: center;
+    gap: 4px;
+    border-radius: 60px;
+    background: #f5f5f5;
+    padding: 4px;
+    transition: background 150ms ease;
+  }
+  .theme-toggle-track-dark {
+    background: #1c1c1c;
+  }
+  .theme-toggle-segment {
+    display: flex;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    color: #8a8a8a;
+    transition:
+      width 150ms ease,
+      background 150ms ease,
+      color 150ms ease;
+  }
+  .theme-toggle-active {
+    width: 44px;
+    background: #ffffff;
+    color: #111111;
+  }
+  .dark .theme-toggle-active {
+    background: #2b2b2b;
+    color: #ffffff;
+  }
+  .theme-toggle-svg {
+    width: 20px;
+    height: 20px;
   }
   .group:hover .group-hover\:scale-103 {
     transform: scale(1.03);
@@ -131,9 +192,9 @@ b,
 }
 
 .dark .home-sort-pill-active {
-  border-color: #ffffff;
-  background: #ffffff;
-  color: #000000;
+  border-color: transparent;
+  background: #2b2b2b;
+  color: #ffffff;
 }
 
 .dark .home-sort-pill-idle {
@@ -144,8 +205,7 @@ b,
   background: var(--hover);
 }
 
-.btn-primary,
-.home-sort-pill-active {
+.btn-primary {
   color: #ffffff !important;
 }
 
@@ -154,7 +214,6 @@ b,
 }
 
 .dark .btn-primary,
-.dark .home-sort-pill-active,
 .dark .toggle-pill-active {
   color: #000000 !important;
 }

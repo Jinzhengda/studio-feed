@@ -62,7 +62,7 @@ export default async function HomePage() {
     return (
       <section className="mx-auto flex min-h-[calc(100vh-9rem)] max-w-6xl items-center px-6 py-12">
         <div className="max-w-2xl">
-          <p className="text-sm text-[var(--muted)]">studio-feed</p>
+          <p className="text-sm text-[var(--muted)]">StudioFeed</p>
           <h1 className="mt-4 text-4xl font-medium leading-tight sm:text-6xl">
             设计工作室作品流
           </h1>
