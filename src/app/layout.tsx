@@ -1,7 +1,6 @@
 import "./globals.css";
-import Link from "next/link";
-import HeaderUserMenu from "@/components/HeaderUserMenu";
-import ThemeToggle from "@/components/ThemeToggle";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata = {
   title: "StudioFeed",
@@ -33,29 +32,11 @@ export default async function RootLayout({
       </head>
       <body>
         <div className="min-h-screen flex flex-col">
-          <header className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-[var(--header-bg)] backdrop-blur">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-              <Link href="/" className="brand-wordmark">
-                StudioFeed
-              </Link>
-              <div className="flex items-center gap-6">
-                <nav className="hidden md:flex items-center gap-6 text-sm">
-                  <Link href="/about">About</Link>
-                  <Link href="/contact">Contact</Link>
-                </nav>
-                <ThemeToggle />
-                <HeaderUserMenu />
-              </div>
-            </div>
-          </header>
+          <SiteHeader />
 
           <main className="flex-1">{children}</main>
 
-          <footer className="border-t border-[var(--stroke)] bg-[var(--footer-bg)]">
-            <div className="mx-auto max-w-6xl px-6 py-6 text-sm text-[var(--muted)]">
-              StudioFeed © 2026
-            </div>
-          </footer>
+          <SiteFooter />
         </div>
       </body>
     </html>

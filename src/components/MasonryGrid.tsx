@@ -60,7 +60,7 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
 
   function chooseSortMode(nextMode: "time" | "random") {
     setSortMode(nextMode);
-    if (nextMode === "random") setRandomSeed((seed) => seed + 1);
+    if (nextMode === "random") setRandomSeed(createRandomSeed());
   }
 
   // 将作品分配到各列
@@ -150,4 +150,14 @@ function seededScore(input: string, seed: number) {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+function createRandomSeed() {
+  if (typeof window !== "undefined" && window.crypto) {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return values[0];
+  }
+
+  return Math.floor(Math.random() * 2 ** 32);
 }

@@ -156,6 +156,14 @@ b,
     width: 20px;
     height: 20px;
   }
+  .home-hero-primary {
+    background: #000000 !important;
+    color: #ffffff !important;
+  }
+  .dark .home-hero-primary {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
   .group:hover .group-hover\:scale-103 {
     transform: scale(1.03);
   }
