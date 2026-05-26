@@ -3,19 +3,15 @@
 import { useState } from "react";
 
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(
-    () =>
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("dark")
-  );
+  const [isDark, setIsDark] = useState(false);
 
   function toggleTheme() {
-    setIsDark((current) => {
-      const next = !current;
-      document.documentElement.classList.toggle("dark", next);
-      window.localStorage.setItem("studio-feed-theme", next ? "dark" : "light");
-      return next;
-    });
+    const current = document.documentElement.classList.contains("dark");
+    const next = !current;
+
+    document.documentElement.classList.toggle("dark", next);
+    window.localStorage.setItem("studio-feed-theme", next ? "dark" : "light");
+    setIsDark(next);
   }
 
   return (
@@ -24,16 +20,17 @@ export default function ThemeToggle() {
       className="theme-toggle"
       aria-label={isDark ? "切换到亮色模式" : "切换到暗色模式"}
       aria-pressed={isDark}
+      suppressHydrationWarning
       onClick={toggleTheme}
     >
       <span
-        className={`theme-toggle-track ${isDark ? "theme-toggle-track-dark" : ""}`}
+        className="theme-toggle-track"
         aria-hidden="true"
       >
-        <span className={`theme-toggle-segment ${isDark ? "theme-toggle-active" : ""}`}>
+        <span className="theme-toggle-segment theme-toggle-segment-moon">
           <MoonIcon />
         </span>
-        <span className={`theme-toggle-segment ${isDark ? "" : "theme-toggle-active"}`}>
+        <span className="theme-toggle-segment theme-toggle-segment-sun">
           <SunIcon />
         </span>
       </span>

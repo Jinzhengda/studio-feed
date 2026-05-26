@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import ThemeToggle from "./ThemeToggle";
 
 export default function MobileMenu({
   isAuthed,
@@ -15,9 +16,12 @@ export default function MobileMenu({
   showNavLinks?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
 
   useEffect(() => {
     if (!avatarUrl) return;
@@ -45,6 +49,23 @@ export default function MobileMenu({
     await supabase.auth.signOut();
     setIsOpen(false);
     router.push("/login");
+  }
+
+  function chooseSortMode(nextMode: "time" | "random") {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (nextMode === "random") {
+      params.set("sort", "random");
+      params.set("seed", String(createRandomSeed()));
+    } else {
+      params.delete("sort");
+      params.delete("seed");
+    }
+
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
   }
 
   return (
@@ -93,6 +114,42 @@ export default function MobileMenu({
 
           {isAuthed ? (
             <>
+              {showNavLinks && (
+                <>
+                  <div className="px-4 py-2">
+                    <ThemeToggle />
+                  </div>
+                  {pathname === "/" && (
+                    <div className="px-4 py-2">
+                      <div className="grid h-9 grid-cols-2 border border-[var(--stroke)] text-sm">
+                        <button
+                          type="button"
+                          className={
+                            sortMode === "time"
+                              ? "bg-[var(--ink)] text-[var(--bg)]"
+                              : "bg-transparent text-[var(--ink)]"
+                          }
+                          onClick={() => chooseSortMode("time")}
+                        >
+                          按时间
+                        </button>
+                        <button
+                          type="button"
+                          className={
+                            sortMode === "random"
+                              ? "bg-[var(--ink)] text-[var(--bg)]"
+                              : "bg-transparent text-[var(--ink)]"
+                          }
+                          onClick={() => chooseSortMode("random")}
+                        >
+                          随机
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <hr className="my-2 border-[var(--stroke)]" />
+                </>
+              )}
               <div className="px-4 py-2 flex items-center gap-2">
                 {avatarUrl ? (
                   <img
@@ -150,4 +207,14 @@ export default function MobileMenu({
       </div>
     </div>
   );
+}
+
+function createRandomSeed() {
+  if (typeof window !== "undefined" && window.crypto) {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return values[0];
+  }
+
+  return Math.floor(Math.random() * 2 ** 32);
 }

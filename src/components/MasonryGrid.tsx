@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import WorkImage from "./WorkImage";
 
 type Work = {
@@ -15,10 +16,13 @@ type Work = {
 
 export default function MasonryGrid({ works }: { works: Work[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [columns, setColumns] = useState(2);
-  const [query, setQuery] = useState("");
-  const [sortMode, setSortMode] = useState<"time" | "random">("time");
-  const [randomSeed, setRandomSeed] = useState(0);
+  const query = searchParams.get("q") || "";
+  const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
+  const randomSeed = Number(searchParams.get("seed") || 0);
 
   useEffect(() => {
     function updateColumns() {
@@ -58,9 +62,28 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
     );
   }, [query, randomSeed, sortMode, works]);
 
-  function chooseSortMode(nextMode: "time" | "random") {
-    setSortMode(nextMode);
-    if (nextMode === "random") setRandomSeed(createRandomSeed());
+  function updateFeedParams(updates: { query?: string; sortMode?: "time" | "random" }) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (updates.query !== undefined) {
+      if (updates.query) params.set("q", updates.query);
+      else params.delete("q");
+    }
+
+    if (updates.sortMode) {
+      if (updates.sortMode === "random") {
+        params.set("sort", "random");
+        params.set("seed", String(createRandomSeed()));
+      } else {
+        params.delete("sort");
+        params.delete("seed");
+      }
+    }
+
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
   }
 
   // 将作品分配到各列
@@ -71,11 +94,11 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start sm:gap-4">
+      <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-start md:gap-4">
         <input
           className="h-10 w-full rounded-none border border-[var(--stroke)] bg-[var(--card)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:w-[240px]"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => updateFeedParams({ query: event.target.value })}
           placeholder="搜索作品或工作室"
         />
         <div className="inline-flex w-fit items-center gap-2 text-sm">
@@ -84,7 +107,7 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
             className={`home-sort-pill ${
               sortMode === "time" ? "home-sort-pill-active" : "home-sort-pill-idle"
             }`}
-            onClick={() => chooseSortMode("time")}
+            onClick={() => updateFeedParams({ sortMode: "time" })}
           >
             按时间
           </button>
@@ -93,7 +116,7 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
             className={`home-sort-pill ${
               sortMode === "random" ? "home-sort-pill-active" : "home-sort-pill-idle"
             }`}
-            onClick={() => chooseSortMode("random")}
+            onClick={() => updateFeedParams({ sortMode: "random" })}
           >
             随机
           </button>

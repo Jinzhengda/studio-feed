@@ -72,7 +72,7 @@ export default function LoginPage() {
                 name="studio-feed-email"
                 autoComplete="off"
                 readOnly={!emailEditable}
-                className="mt-2 h-10 w-full rounded-none border border-[var(--stroke)] px-4 outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white"
+                className="mt-2 h-10 w-full rounded-none border border-[var(--stroke)] px-4 outline-none transition-colors focus:border-black focus:ring-1 focus:ring-black dark:focus:border-white dark:focus:ring-white"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onFocus={() => setEmailEditable(true)}
@@ -90,7 +90,7 @@ export default function LoginPage() {
                   name="studio-feed-passcode"
                   autoComplete="new-password"
                   readOnly={!passwordEditable}
-                  className="h-10 w-full rounded-none border border-[var(--stroke)] px-4 pr-11 outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white"
+                  className="h-10 w-full rounded-none border border-[var(--stroke)] px-4 pr-11 outline-none transition-colors focus:border-black focus:ring-1 focus:ring-black dark:focus:border-white dark:focus:ring-white"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setPasswordEditable(true)}

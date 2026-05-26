@@ -60,13 +60,14 @@ export default async function HomePage() {
 
   if (!userData.user) {
     return (
-      <section className="h-[calc(100vh-4.5rem)] overflow-hidden px-10 py-16">
-        <div className="mx-auto flex h-full max-w-4xl flex-col items-center justify-start pt-28 text-center">
+      <section className="h-[calc(100vh-49px)] overflow-hidden px-10 py-8">
+        <div className="mx-auto flex h-full max-w-4xl flex-col items-center justify-center text-center">
           <p className="mb-[60px] text-sm font-medium uppercase tracking-[0.5em] text-[var(--muted)]">
             StudioFeed
           </p>
           <h1 className="max-w-3xl text-5xl font-medium leading-[1.02] sm:text-[64px]">
-            你的设计灵感工作台
+            你的设计灵感<wbr />
+            工作台
           </h1>
           <p className="mt-6 max-w-[480px] text-base leading-7 text-[var(--muted)] sm:text-lg">
             聚合全球设计工作室的新作品、封面与更新时间。少一点噪音，多一点可以马上收藏、研究和回看的视觉线索。
@@ -82,7 +83,7 @@ export default async function HomePage() {
               href="/about"
               className="inline-flex h-10 w-36 items-center justify-center rounded-none border border-[var(--stroke)] bg-transparent text-sm text-[var(--ink)] transition-colors hover:bg-[var(--hover)]"
             >
-              About
+              关于
             </Link>
           </div>
         </div>
