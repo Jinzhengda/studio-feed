@@ -9,11 +9,13 @@ import ThemeToggle from "./ThemeToggle";
 export default function MobileMenu({
   isAuthed,
   avatarUrl,
-  showNavLinks = false
+  showNavLinks = false,
+  showThemeToggle = false,
 }: {
   isAuthed: boolean;
   avatarUrl?: string | null;
   showNavLinks?: boolean;
+  showThemeToggle?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -88,7 +90,7 @@ export default function MobileMenu({
       </button>
 
       <div
-        className={`absolute right-0 z-50 mt-2 w-[160px] rounded-none border border-[var(--stroke)] bg-[var(--card)] py-2 shadow-lg transition-opacity ${
+        className={`absolute right-0 z-50 mt-2 w-[180px] rounded-none border border-[var(--stroke)] bg-[var(--card)] py-2 shadow-lg transition-opacity ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
@@ -116,9 +118,11 @@ export default function MobileMenu({
             <>
               {showNavLinks && (
                 <>
-                  <div className="px-4 py-2">
-                    <ThemeToggle />
-                  </div>
+                  {showThemeToggle && (
+                    <div className="px-4 py-2">
+                      <ThemeToggle />
+                    </div>
+                  )}
                   {pathname === "/" && (
                     <div className="px-4 py-2">
                       <div className="grid h-9 grid-cols-2 border border-[var(--stroke)] text-sm">

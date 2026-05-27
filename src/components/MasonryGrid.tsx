@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import WorkImage from "./WorkImage";
 
 type Work = {
@@ -16,8 +16,6 @@ type Work = {
 
 export default function MasonryGrid({ works }: { works: Work[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [columns, setColumns] = useState(2);
   const query = searchParams.get("q") || "";
@@ -62,30 +60,6 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
     );
   }, [query, randomSeed, sortMode, works]);
 
-  function updateFeedParams(updates: { query?: string; sortMode?: "time" | "random" }) {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (updates.query !== undefined) {
-      if (updates.query) params.set("q", updates.query);
-      else params.delete("q");
-    }
-
-    if (updates.sortMode) {
-      if (updates.sortMode === "random") {
-        params.set("sort", "random");
-        params.set("seed", String(createRandomSeed()));
-      } else {
-        params.delete("sort");
-        params.delete("seed");
-      }
-    }
-
-    const queryString = params.toString();
-    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
-      scroll: false,
-    });
-  }
-
   // 将作品分配到各列
   const columnWorks: Work[][] = Array.from({ length: columns }, () => []);
   displayedWorks.forEach((work, index) => {
@@ -93,43 +67,14 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-start md:gap-4">
-        <input
-          className="h-10 w-full rounded-none border border-[var(--stroke)] bg-[var(--card)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:w-[240px]"
-          value={query}
-          onChange={(event) => updateFeedParams({ query: event.target.value })}
-          placeholder="搜索作品或工作室"
-        />
-        <div className="inline-flex w-fit items-center gap-2 text-sm">
-          <button
-            type="button"
-            className={`home-sort-pill ${
-              sortMode === "time" ? "home-sort-pill-active" : "home-sort-pill-idle"
-            }`}
-            onClick={() => updateFeedParams({ sortMode: "time" })}
-          >
-            按时间
-          </button>
-          <button
-            type="button"
-            className={`home-sort-pill ${
-              sortMode === "random" ? "home-sort-pill-active" : "home-sort-pill-idle"
-            }`}
-            onClick={() => updateFeedParams({ sortMode: "random" })}
-          >
-            随机
-          </button>
-        </div>
-      </div>
-
+    <div>
       <div
         ref={containerRef}
-        className="grid gap-4"
+        className="grid gap-6 sm:gap-7 lg:gap-8"
         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
       >
         {columnWorks.map((columnItems, columnIndex) => (
-          <div key={columnIndex} className="flex flex-col gap-4">
+          <div key={columnIndex} className="flex flex-col gap-6 sm:gap-7 lg:gap-8">
             {columnItems.map((work) => (
               <a
                 key={work.id}
@@ -173,14 +118,4 @@ function seededScore(input: string, seed: number) {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
-}
-
-function createRandomSeed() {
-  if (typeof window !== "undefined" && window.crypto) {
-    const values = new Uint32Array(1);
-    window.crypto.getRandomValues(values);
-    return values[0];
-  }
-
-  return Math.floor(Math.random() * 2 ** 32);
 }

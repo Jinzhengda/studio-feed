@@ -20,11 +20,10 @@ export default function SiteHeader() {
         <Link href="/" className="brand-wordmark">
           StudioFeed
         </Link>
-        <div className="flex items-center gap-6">
-          <nav className="hidden items-center gap-6 text-sm md:flex">
-            <Link href="/about">About</Link>
-            <Link href="/contact">Contact</Link>
-          </nav>
+        <div className="flex items-center gap-4">
+          <Suspense fallback={null}>
+            <MobileFeedSearch />
+          </Suspense>
           <div className="hidden md:block">
             <ThemeToggle />
           </div>
@@ -32,9 +31,6 @@ export default function SiteHeader() {
             <HeaderUserMenu />
           </Suspense>
         </div>
-        <Suspense fallback={null}>
-          <MobileFeedSearch />
-        </Suspense>
       </div>
     </header>
   );

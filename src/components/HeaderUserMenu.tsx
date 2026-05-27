@@ -75,10 +75,20 @@ export default function HeaderUserMenu() {
   return (
     <>
       <div className="md:hidden">
-        <MobileMenu isAuthed={true} avatarUrl={avatarUrl} showNavLinks={true} />
+        <MobileMenu
+          isAuthed={true}
+          avatarUrl={avatarUrl}
+          showNavLinks={true}
+          showThemeToggle={true}
+        />
       </div>
       <div className="hidden md:block">
-        <MobileMenu isAuthed={true} avatarUrl={avatarUrl} showNavLinks={false} />
+        <MobileMenu
+          isAuthed={true}
+          avatarUrl={avatarUrl}
+          showNavLinks={true}
+          showThemeToggle={false}
+        />
       </div>
     </>
   );
