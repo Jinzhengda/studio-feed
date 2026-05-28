@@ -67,6 +67,8 @@ export default function WorkImage({
   }
 
   return (
+    // Runtime media fallbacks rely on directly swapping the element src after load errors.
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={renderedImageUrl}
       alt={alt}

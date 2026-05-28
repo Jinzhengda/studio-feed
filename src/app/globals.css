@@ -173,6 +173,113 @@ b,
   .group:hover .group-hover\:scale-103 {
     transform: scale(1.03);
   }
+  .menu-row {
+    @apply flex w-full items-center justify-between gap-4 px-6 py-3 text-left transition-colors;
+  }
+  .menu-row:hover {
+    background: var(--hover);
+  }
+  .menu-row-bottom {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .menu-row-logout {
+    padding-top: 12px;
+    padding-bottom: 16px;
+  }
+  .menu-label {
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .menu-panel {
+    backdrop-filter: none;
+    color: #000000;
+  }
+  .dark .menu-panel {
+    color: #ffffff;
+  }
+  .menu-avatar {
+    width: 32px;
+    height: 32px;
+  }
+  .menu-divider {
+    height: 1px;
+    width: 100%;
+    background: var(--stroke);
+  }
+  .menu-section {
+    width: 100%;
+  }
+  .menu-control-section {
+    padding-top: 0;
+  }
+  .menu-control-row {
+    @apply flex w-full items-center justify-between gap-4 px-6 text-left;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .menu-control-row-first {
+    padding-top: 16px;
+  }
+  .menu-toggle {
+    display: flex;
+    width: 120px;
+    min-width: 120px;
+    flex-shrink: 0;
+    gap: 4px;
+    background: #f5f5f5;
+    border-radius: 9999px;
+    padding: 3px;
+  }
+  .dark .menu-toggle {
+    background: #1c1c1c;
+  }
+  .menu-toggle-option {
+    display: inline-flex;
+    height: 28px;
+    flex: 1 0 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .menu-icon-toggle {
+    display: inline-flex;
+    height: 28px;
+    flex: 1 0 0;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    color: #8a8a8a;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .menu-row svg {
+    flex-shrink: 0;
+  }
+  .menu-toggle-option-active {
+    background: #ffffff;
+    color: #111111;
+  }
+  .menu-toggle-option-idle {
+    background: transparent;
+    color: rgba(0, 0, 0, 0.4);
+  }
+  .dark .menu-toggle-option-active {
+    background: #2b2b2b;
+    color: #ffffff;
+  }
+  .dark .menu-toggle-option-idle {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .dark .menu-icon-toggle {
+    color: rgba(255, 255, 255, 0.5);
+  }
 }
 
 .dark .btn {

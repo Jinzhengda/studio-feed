@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import HeaderUserMenu from "@/components/HeaderUserMenu";
-import ThemeToggle from "@/components/ThemeToggle";
 import MobileFeedSearch from "@/components/MobileFeedSearch";
 
 export default function SiteHeader() {
@@ -24,9 +23,6 @@ export default function SiteHeader() {
           <Suspense fallback={null}>
             <MobileFeedSearch />
           </Suspense>
-          <div className="hidden md:block">
-            <ThemeToggle />
-          </div>
           <Suspense fallback={<span className="h-10 w-10" aria-hidden="true" />}>
             <HeaderUserMenu />
           </Suspense>

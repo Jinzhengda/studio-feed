@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import AvatarImage from "./AvatarImage";
 
 export default function UserMenu({
   isAuthed,
@@ -60,11 +61,11 @@ export default function UserMenu({
         className="h-10 w-10 rounded-full overflow-hidden border-2 border-[var(--stroke)] hover:border-black transition-colors"
       >
         {avatarUrl ? (
-          <img
+          <AvatarImage
             src={avatarUrl}
             alt="User avatar"
+            size={40}
             className="h-full w-full object-cover"
-            loading="eager"
           />
         ) : (
           <div className="h-full w-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm font-medium">

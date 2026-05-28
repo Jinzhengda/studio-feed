@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import AvatarImage from "@/components/AvatarImage";
 
 export default function ProfilePage() {
   const supabase = useMemo(() => createClient(), []);
@@ -95,7 +96,12 @@ export default function ProfilePage() {
         <div className="mt-4 flex items-center gap-6">
           <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-[var(--stroke)]">
             {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              <AvatarImage
+                src={avatarUrl}
+                alt="Avatar"
+                size={96}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <div className="h-full w-full bg-gray-200 flex items-center justify-center text-gray-600 text-2xl font-medium">
                 U

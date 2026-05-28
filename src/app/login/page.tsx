@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -153,11 +154,14 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="hidden min-h-screen overflow-hidden lg:block">
-        <img
+      <div className="relative hidden min-h-screen overflow-hidden lg:block">
+        <Image
           src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=85"
           alt=""
-          className="h-full min-h-screen w-full object-cover"
+          fill
+          priority
+          unoptimized
+          className="object-cover"
         />
       </div>
     </section>

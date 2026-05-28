@@ -3,23 +3,36 @@
 import { useState } from "react";
 
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
+    if (typeof window === "undefined") {
+      return "system";
+    }
+
+    const savedTheme = window.localStorage.getItem("studio-feed-theme");
+    if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
+      return savedTheme;
+    }
+
+    return "system";
+  });
 
   function toggleTheme() {
-    const current = document.documentElement.classList.contains("dark");
-    const next = !current;
+    const nextTheme =
+      theme === "system" ? "dark" : theme === "dark" ? "light" : "system";
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const useDark = nextTheme === "dark" || (nextTheme === "system" && prefersDark);
 
-    document.documentElement.classList.toggle("dark", next);
-    window.localStorage.setItem("studio-feed-theme", next ? "dark" : "light");
-    setIsDark(next);
+    document.documentElement.classList.toggle("dark", useDark);
+    window.localStorage.setItem("studio-feed-theme", nextTheme);
+    setTheme(nextTheme);
   }
 
   return (
     <button
       type="button"
       className="theme-toggle"
-      aria-label={isDark ? "切换到亮色模式" : "切换到暗色模式"}
-      aria-pressed={isDark}
+      aria-label="切换主题"
+      aria-pressed={theme === "dark"}
       suppressHydrationWarning
       onClick={toggleTheme}
     >
@@ -36,6 +49,14 @@ export default function ThemeToggle() {
       </span>
     </button>
   );
+}
+
+export function applyTheme(nextTheme: "light" | "dark" | "system") {
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const useDark = nextTheme === "dark" || (nextTheme === "system" && prefersDark);
+
+  document.documentElement.classList.toggle("dark", useDark);
+  window.localStorage.setItem("studio-feed-theme", nextTheme);
 }
 
 function MoonIcon() {
@@ -72,6 +93,43 @@ function SunIcon() {
         strokeWidth="1.5"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+export function ThemeSunIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <circle cx="10" cy="10" r="3.25" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function ThemeMoonIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M15.7 12.7A7 7 0 0 1 7.3 4.3 6.8 6.8 0 1 0 15.7 12.7Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function ThemeSystemIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <circle cx="10" cy="10" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 4.5a5.5 5.5 0 0 1 0 11Z" fill="currentColor" />
     </svg>
   );
 }

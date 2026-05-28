@@ -67,7 +67,7 @@ export default function HeaderUserMenu() {
   if (!isAuthed) {
     return (
       <Link href="/login" className="text-sm">
-        Login
+        登录
       </Link>
     );
   }
@@ -87,7 +87,7 @@ export default function HeaderUserMenu() {
           isAuthed={true}
           avatarUrl={avatarUrl}
           showNavLinks={true}
-          showThemeToggle={false}
+          showThemeToggle={true}
         />
       </div>
     </>
