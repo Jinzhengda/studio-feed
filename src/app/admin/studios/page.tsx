@@ -36,6 +36,9 @@ export default function StudiosAdminPage() {
   const [toast, setToast] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [activeStudioId, setActiveStudioId] = useState<string | null>(null);
 
   function showToast(text: string) {
     setToast(text);
@@ -75,6 +78,26 @@ export default function StudiosAdminPage() {
     loadStudios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredStudios = studios.filter((studio) => {
+    const matchesQuery =
+      !normalizedQuery ||
+      studio.name.toLowerCase().includes(normalizedQuery) ||
+      (studio.website_url || "").toLowerCase().includes(normalizedQuery) ||
+      (studio.feed_url || "").toLowerCase().includes(normalizedQuery) ||
+      (studio.location || "").toLowerCase().includes(normalizedQuery) ||
+      (studio.tags || "").toLowerCase().includes(normalizedQuery);
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && studio.is_active) ||
+      (statusFilter === "inactive" && !studio.is_active);
+
+    return matchesQuery && matchesStatus;
+  });
+  const activeCount = studios.filter((studio) => studio.is_active).length;
+  const inactiveCount = studios.length - activeCount;
 
   function openCreateForm() {
     setForm({ ...emptyForm });
@@ -142,14 +165,17 @@ export default function StudiosAdminPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("确定删除这个工作室吗？")) return;
+    setActiveStudioId(id);
 
     try {
       const { error } = await supabase.from("studios").delete().eq("id", id);
       if (error) throw error;
       showToast("已删除");
-      loadStudios();
+      await loadStudios();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "删除失败");
+    } finally {
+      setActiveStudioId(null);
     }
   }
 
@@ -207,7 +233,12 @@ export default function StudiosAdminPage() {
       )}
       <div>
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-medium">工作室列表</h2>
+          <div>
+            <h2 className="text-lg font-medium">工作室列表</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              共 {studios.length} 家，{activeCount} 家启用，{inactiveCount} 家停用
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <button type="button" className="btn" onClick={openCreateForm}>
               新增工作室
@@ -228,61 +259,145 @@ export default function StudiosAdminPage() {
           </p>
         )}
 
+        <div className="mb-6 grid gap-3 sm:grid-cols-3">
+          <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+            <p className="text-sm text-[var(--muted)]">筛选结果</p>
+            <p className="mt-2 text-3xl">{filteredStudios.length}</p>
+          </div>
+          <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+            <p className="text-sm text-[var(--muted)]">已启用</p>
+            <p className="mt-2 text-3xl">{activeCount}</p>
+          </div>
+          <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+            <p className="text-sm text-[var(--muted)]">未启用</p>
+            <p className="mt-2 text-3xl">{inactiveCount}</p>
+          </div>
+        </div>
+
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <input
+            className="h-11 w-full rounded-full border border-[var(--stroke)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:max-w-sm"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索名称、官网、地区或标签"
+          />
+          <div className="inline-flex w-fit items-center gap-4 text-sm">
+            {(["all", "active", "inactive"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={`home-sort-pill ${
+                  statusFilter === item ? "home-sort-pill-active" : "home-sort-pill-idle"
+                }`}
+                onClick={() => setStatusFilter(item)}
+              >
+                {item === "all" ? "全部" : item === "active" ? "启用" : "停用"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {loading ? (
           <p className="mt-5 text-sm text-[var(--muted)]">加载中...</p>
         ) : (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="text-left">
-                <th className="border-b border-[var(--stroke)] py-3">名称</th>
-                <th className="border-b border-[var(--stroke)] py-3">官网</th>
-                <th className="border-b border-[var(--stroke)] py-3">封面</th>
-                <th className="border-b border-[var(--stroke)] py-3">启用</th>
-                <th className="border-b border-[var(--stroke)] py-3">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {studios.map((studio) => (
-                <tr key={studio.id}>
-                  <td className="border-b border-[var(--stroke)] py-3">
-                    {studio.name}
-                  </td>
-                  <td className="border-b border-[var(--stroke)] py-3">
-                    {studio.website_url || "-"}
-                  </td>
-                  <td className="border-b border-[var(--stroke)] py-3">
-                    {studio.cover_url ? "已设置" : "未设置"}
-                  </td>
-                  <td className="border-b border-[var(--stroke)] py-3">
-                    {studio.is_active ? "是" : "否"}
-                  </td>
-                  <td className="border-b border-[var(--stroke)] py-3">
-                    <div className="flex gap-2">
-                      <button
-                        className="btn-text"
-                        onClick={() => openEditForm(studio)}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        className="btn-text"
-                        onClick={() => handleDelete(studio.id)}
-                      >
-                        删除
-                      </button>
+          <>
+            <div className="grid gap-4 md:hidden">
+              {filteredStudios.map((studio) => (
+                <article
+                  key={studio.id}
+                  className="border border-[var(--stroke)] bg-[var(--card)] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-base">{studio.name}</h3>
+                      <p className="mt-2 text-sm text-[var(--muted)]">
+                        {studio.location || "未设置地区"}
+                      </p>
                     </div>
-                  </td>
-                </tr>
+                    <span className="shrink-0 text-xs text-[var(--muted)]">
+                      {studio.is_active ? "启用" : "停用"}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-2 text-sm text-[var(--muted)]">
+                    <p className="truncate">{studio.website_url || "未设置官网"}</p>
+                    <p className="truncate">{studio.feed_url || "未设置抓取地址"}</p>
+                    <p>{studio.cover_url ? "已设置封面图" : "未设置封面图"}</p>
+                  </div>
+                  <div className="mt-4 flex gap-3">
+                    <button className="btn-text" onClick={() => openEditForm(studio)}>
+                      编辑
+                    </button>
+                    <button
+                      className="btn-text"
+                      onClick={() => handleDelete(studio.id)}
+                      disabled={activeStudioId === studio.id}
+                    >
+                      {activeStudioId === studio.id ? "删除中..." : "删除"}
+                    </button>
+                  </div>
+                </article>
               ))}
-              {studios.length === 0 && (
-                <tr>
-                  <td className="py-5 text-sm text-[var(--muted)]" colSpan={5}>
-                    暂无工作室
-                  </td>
-                </tr>
+              {filteredStudios.length === 0 && (
+                <p className="text-sm text-[var(--muted)]">
+                  {studios.length === 0 ? "暂无工作室" : "没有符合筛选的工作室"}
+                </p>
               )}
-            </tbody>
-          </table>
+            </div>
+
+            <table className="hidden w-full border-collapse text-sm md:table">
+              <thead>
+                <tr className="text-left">
+                  <th className="border-b border-[var(--stroke)] py-3">名称</th>
+                  <th className="border-b border-[var(--stroke)] py-3">官网</th>
+                  <th className="border-b border-[var(--stroke)] py-3">封面</th>
+                  <th className="border-b border-[var(--stroke)] py-3">启用</th>
+                  <th className="border-b border-[var(--stroke)] py-3">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudios.map((studio) => (
+                  <tr key={studio.id}>
+                    <td className="border-b border-[var(--stroke)] py-3">
+                      {studio.name}
+                    </td>
+                    <td className="border-b border-[var(--stroke)] py-3">
+                      {studio.website_url || "-"}
+                    </td>
+                    <td className="border-b border-[var(--stroke)] py-3">
+                      {studio.cover_url ? "已设置" : "未设置"}
+                    </td>
+                    <td className="border-b border-[var(--stroke)] py-3">
+                      {studio.is_active ? "是" : "否"}
+                    </td>
+                    <td className="border-b border-[var(--stroke)] py-3">
+                      <div className="flex gap-2">
+                        <button
+                          className="btn-text"
+                          onClick={() => openEditForm(studio)}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          className="btn-text"
+                          onClick={() => handleDelete(studio.id)}
+                          disabled={activeStudioId === studio.id}
+                        >
+                          {activeStudioId === studio.id ? "删除中..." : "删除"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredStudios.length === 0 && (
+                  <tr>
+                    <td className="py-5 text-sm text-[var(--muted)]" colSpan={5}>
+                      {studios.length === 0 ? "暂无工作室" : "没有符合筛选的工作室"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
 

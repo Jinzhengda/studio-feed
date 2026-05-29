@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type ThemeMode = "light" | "dark" | "system";
+const THEME_STORAGE_KEY = "studio-feed-theme-mode";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
+  const [theme, setTheme] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") {
       return "system";
     }
 
-    const savedTheme = window.localStorage.getItem("studio-feed-theme");
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
       return savedTheme;
     }
@@ -16,14 +19,28 @@ export default function ThemeToggle() {
     return "system";
   });
 
+  useEffect(() => {
+    applyTheme(theme);
+
+    if (theme !== "system") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const syncSystemTheme = () => applyTheme("system");
+
+    mediaQuery.addEventListener("change", syncSystemTheme);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncSystemTheme);
+    };
+  }, [theme]);
+
   function toggleTheme() {
     const nextTheme =
       theme === "system" ? "dark" : theme === "dark" ? "light" : "system";
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const useDark = nextTheme === "dark" || (nextTheme === "system" && prefersDark);
 
-    document.documentElement.classList.toggle("dark", useDark);
-    window.localStorage.setItem("studio-feed-theme", nextTheme);
+    applyTheme(nextTheme);
     setTheme(nextTheme);
   }
 
@@ -51,12 +68,13 @@ export default function ThemeToggle() {
   );
 }
 
-export function applyTheme(nextTheme: "light" | "dark" | "system") {
+export function applyTheme(nextTheme: ThemeMode) {
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const useDark = nextTheme === "dark" || (nextTheme === "system" && prefersDark);
 
+  document.documentElement.classList.toggle("light", nextTheme === "light");
   document.documentElement.classList.toggle("dark", useDark);
-  window.localStorage.setItem("studio-feed-theme", nextTheme);
+  window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
 }
 
 function MoonIcon() {

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import MasonryGrid from "@/components/MasonryGrid";
 import Link from "next/link";
+import FloatingHeroGallery from "@/components/FloatingHeroGallery";
 
 export const revalidate = 0;
 
@@ -59,29 +60,43 @@ export default async function HomePage() {
   const { data: userData } = await supabase.auth.getUser();
 
   if (!userData.user) {
+    const { data: heroData } = await supabase
+      .from("works")
+      .select("id,title,thumbnail_url")
+      .eq("is_visible", true)
+      .not("thumbnail_url", "is", null)
+      .order("first_seen_at", { ascending: false })
+      .limit(22);
+    const heroWorks =
+      (heroData as Pick<WorkRow, "id" | "title" | "thumbnail_url">[] | null)
+        ?.map((work) => ({
+          id: work.id,
+          title: work.title || "Untitled",
+          thumbnail_url: work.thumbnail_url || "",
+        }))
+        .filter((work) => work.thumbnail_url) || demoWorks;
+
     return (
-      <section className="h-[calc(100vh-49px)] overflow-hidden px-10 py-8">
-        <div className="mx-auto flex h-full max-w-4xl flex-col items-center justify-center text-center">
-          <p className="mb-[60px] text-sm font-medium uppercase tracking-[0.5em] text-[var(--muted)]">
-            StudioFeed
-          </p>
-          <h1 className="max-w-3xl text-5xl font-medium leading-[1.02] sm:text-[64px]">
+      <section className="home-hero-section relative h-[calc(100vh-49px)] overflow-hidden px-10 py-8">
+        <FloatingHeroGallery items={heroWorks} />
+        <div className="absolute left-1/2 top-[40%] z-10 flex w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col items-center px-10 text-center">
+          <h1 className="max-w-3xl text-5xl font-medium leading-[1.02] sm:text-[56px]">
             你的设计灵感<wbr />
             工作台
           </h1>
-          <p className="mt-6 max-w-[480px] text-base leading-7 text-[var(--muted)] sm:text-lg">
+          <p className="mt-4 max-w-[480px] text-base leading-[1.35] text-[var(--muted)]">
             聚合全球设计工作室的新作品、封面与更新时间。少一点噪音，多一点可以马上收藏、研究和回看的视觉线索。
           </p>
-          <div className="mt-[60px] flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-5">
             <Link
               href="/login"
-              className="home-hero-primary inline-flex h-10 w-36 items-center justify-center rounded-none text-sm transition-opacity hover:opacity-80"
+              className="home-hero-primary inline-flex h-12 w-40 items-center justify-center rounded-none text-base transition-opacity hover:opacity-80"
             >
               登录
             </Link>
             <Link
               href="/about"
-              className="inline-flex h-10 w-36 items-center justify-center rounded-none border border-[var(--stroke)] bg-transparent text-sm text-[var(--ink)] transition-colors hover:bg-[var(--hover)]"
+              className="inline-flex h-12 w-40 items-center justify-center rounded-none border border-[var(--stroke)] bg-[var(--card)] text-base text-[var(--ink)] transition-colors hover:bg-[var(--hover)]"
             >
               关于
             </Link>

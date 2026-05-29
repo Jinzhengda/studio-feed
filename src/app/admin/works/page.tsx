@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Work = {
@@ -16,14 +16,15 @@ type Work = {
 type VisibilityFilter = "all" | "visible" | "hidden";
 
 export default function WorksAdminPage() {
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = createClient();
   const [works, setWorks] = useState<Work[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [visibility, setVisibility] = useState<VisibilityFilter>("all");
+  const [activeWorkId, setActiveWorkId] = useState<string | null>(null);
 
-  const loadWorks = useCallback(async () => {
+  async function loadWorks() {
     setLoading(true);
     const { data, error } = await supabase
       .from("works")
@@ -36,11 +37,14 @@ export default function WorksAdminPage() {
       setWorks((data ?? []) as Work[]);
     }
     setLoading(false);
-  }, [supabase]);
+  }
 
   useEffect(() => {
     void Promise.resolve().then(loadWorks);
-  }, [loadWorks]);
+  // createClient() returns a stable browser client for this module usage.
+  // We only want the initial fetch on mount here.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredWorks = works.filter((work) => {
@@ -60,8 +64,11 @@ export default function WorksAdminPage() {
   });
   const visibleCount = works.filter((work) => work.is_visible).length;
   const hiddenCount = works.length - visibleCount;
+  const filteredVisibleCount = filteredWorks.filter((work) => work.is_visible).length;
+  const filteredHiddenCount = filteredWorks.length - filteredVisibleCount;
 
   async function toggleVisible(work: Work) {
+    setActiveWorkId(work.id);
     const { error } = await supabase
       .from("works")
       .update({ is_visible: !work.is_visible })
@@ -69,19 +76,24 @@ export default function WorksAdminPage() {
 
     if (error) {
       setMessage(error.message);
+      setActiveWorkId(null);
       return;
     }
-    loadWorks();
+    await loadWorks();
+    setActiveWorkId(null);
   }
 
   async function handleDelete(id: string) {
     if (!confirm("确定删除这个作品吗？")) return;
+    setActiveWorkId(id);
     const { error } = await supabase.from("works").delete().eq("id", id);
     if (error) {
       setMessage(error.message);
+      setActiveWorkId(null);
       return;
     }
-    loadWorks();
+    await loadWorks();
+    setActiveWorkId(null);
   }
 
   function getStudioName(work: Work) {
@@ -90,7 +102,7 @@ export default function WorksAdminPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">作品管理</h1>
@@ -104,6 +116,21 @@ export default function WorksAdminPage() {
       </div>
 
       {message && <p className="mt-4 text-sm text-[var(--muted)]">{message}</p>}
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+          <p className="text-sm text-[var(--muted)]">当前结果</p>
+          <p className="mt-2 text-3xl">{filteredWorks.length}</p>
+        </div>
+        <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+          <p className="text-sm text-[var(--muted)]">结果中可见</p>
+          <p className="mt-2 text-3xl">{filteredVisibleCount}</p>
+        </div>
+        <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+          <p className="text-sm text-[var(--muted)]">结果中隐藏</p>
+          <p className="mt-2 text-3xl">{filteredHiddenCount}</p>
+        </div>
+      </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
@@ -128,7 +155,63 @@ export default function WorksAdminPage() {
         </div>
       </div>
 
-      <table className="mt-6 w-full border-collapse text-sm">
+      <div className="grid gap-4 md:hidden">
+        {!loading &&
+          filteredWorks.map((work) => (
+            <article
+              key={work.id}
+              className="border border-[var(--stroke)] bg-[var(--card)] p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <a
+                    href={work.work_url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="line-clamp-2 text-base underline-offset-4 hover:underline"
+                  >
+                    {work.title}
+                  </a>
+                  <p className="mt-2 text-sm text-[var(--muted)]">{getStudioName(work)}</p>
+                </div>
+                <span className="shrink-0 text-xs text-[var(--muted)]">
+                  {work.is_visible ? "可见" : "隐藏"}
+                </span>
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-[var(--muted)]">
+                <span>
+                  {work.published_at
+                    ? new Date(work.published_at).toLocaleDateString()
+                    : "未设置日期"}
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    className="btn-text"
+                    onClick={() => toggleVisible(work)}
+                    disabled={activeWorkId === work.id}
+                  >
+                    {activeWorkId === work.id ? "处理中..." : "切换可见性"}
+                  </button>
+                  <button
+                    className="btn-text"
+                    onClick={() => handleDelete(work.id)}
+                    disabled={activeWorkId === work.id}
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        {!loading && filteredWorks.length === 0 && (
+          <p className="text-sm text-[var(--muted)]">
+            {works.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
+          </p>
+        )}
+        {loading && <p className="text-sm text-[var(--muted)]">加载中...</p>}
+      </div>
+
+      <table className="mt-2 hidden w-full border-collapse text-sm md:table">
         <thead>
           <tr className="text-left">
             <th className="border-b border-[var(--stroke)] py-3">作品</th>
@@ -167,12 +250,14 @@ export default function WorksAdminPage() {
                   <button
                     className="btn-text"
                     onClick={() => toggleVisible(work)}
+                    disabled={activeWorkId === work.id}
                   >
-                    切换可见性
+                    {activeWorkId === work.id ? "处理中..." : "切换可见性"}
                   </button>
                   <button
                     className="btn-text"
                     onClick={() => handleDelete(work.id)}
+                    disabled={activeWorkId === work.id}
                   >
                     删除
                   </button>

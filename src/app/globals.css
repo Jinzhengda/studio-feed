@@ -9,6 +9,7 @@
   --hover: #f5f5f5;
   --header-bg: rgba(255, 255, 255, 0.7);
   --footer-bg: rgba(255, 255, 255, 0.6);
+  color-scheme: light;
 }
 
 :root.dark {
@@ -21,6 +22,20 @@
   --header-bg: rgba(16, 16, 16, 0.76);
   --footer-bg: rgba(16, 16, 16, 0.72);
   color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --bg: #101010;
+    --ink: #f1f1f1;
+    --muted: #a0a0a0;
+    --card: #171717;
+    --stroke: #303030;
+    --hover: #242424;
+    --header-bg: rgba(16, 16, 16, 0.76);
+    --footer-bg: rgba(16, 16, 16, 0.72);
+    color-scheme: dark;
+  }
 }
 
 html,
@@ -129,6 +144,11 @@ b,
   .dark .theme-toggle-track {
     background: #1c1c1c;
   }
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) .theme-toggle-track {
+      background: #1c1c1c;
+    }
+  }
   .theme-toggle-segment {
     display: flex;
     width: 28px;
@@ -172,6 +192,103 @@ b,
   }
   .group:hover .group-hover\:scale-103 {
     transform: scale(1.03);
+  }
+  .home-hero-section::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 40%;
+    width: min(760px, calc(100vw - 48px));
+    height: min(680px, calc(100vh - 140px));
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    background: radial-gradient(
+      ellipse 70% 58% at center,
+      #ffffff 0%,
+      #ffffff 68%,
+      rgba(255, 255, 255, 0.92) 76%,
+      rgba(255, 255, 255, 0) 90%
+    );
+    pointer-events: none;
+  }
+  .dark .home-hero-section::after {
+    background: radial-gradient(
+      ellipse 70% 58% at center,
+      #101010 0%,
+      #101010 68%,
+      rgba(16, 16, 16, 0.9) 76%,
+      rgba(16, 16, 16, 0) 90%
+    );
+  }
+  .hero-flow-background {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(1170px, 140vw);
+    height: calc(100% + 360px);
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    mask-image: linear-gradient(180deg, transparent 0%, black 10%, black 90%, transparent 100%);
+  }
+  .hero-flow-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--hero-card-size);
+    offset-rotate: 0deg;
+    animation-name: hero-flow-travel;
+    animation-duration: var(--hero-card-duration);
+    animation-delay: var(--hero-card-delay);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: offset-distance, transform;
+    animation-fill-mode: both;
+    filter: saturate(0.94) contrast(1);
+    transform: translate(-50%, -50%) scale(var(--hero-card-scale));
+  }
+  .hero-flow-card-primary {
+    offset-path: path("M 585 1180 C 240 1000 245 770 570 620 C 930 455 925 305 600 170 C 265 30 260 -130 585 -300");
+  }
+  .hero-flow-card-secondary {
+    offset-path: path("M 600 1180 C 930 1005 925 770 585 620 C 240 465 245 310 575 170 C 925 25 930 -135 600 -300");
+  }
+  .hero-flow-card-tertiary {
+    offset-path: path("M 590 1180 C 745 1035 405 835 640 660 C 870 488 355 400 580 220 C 810 38 440 -112 590 -300");
+  }
+  .hero-flow-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 0;
+  }
+  @keyframes hero-flow-travel {
+    0% {
+      offset-distance: 0%;
+    }
+    100% {
+      offset-distance: 100%;
+    }
+  }
+  @media (max-width: 640px) {
+    .hero-flow-background {
+      width: 128vw;
+      height: calc(100% + 280px);
+    }
+    .hero-flow-card {
+      width: calc(var(--hero-card-size) * 0.74);
+    }
+    .hero-flow-card-primary {
+      offset-path: path("M 390 1060 C 70 910 80 710 378 570 C 710 415 705 285 402 170 C 85 45 80 -110 390 -250");
+    }
+    .hero-flow-card-secondary {
+      offset-path: path("M 402 1060 C 710 910 705 710 390 570 C 70 425 80 290 378 170 C 710 40 705 -115 402 -250");
+    }
+    .hero-flow-card-tertiary {
+      offset-path: path("M 396 1060 C 548 918 238 738 430 585 C 690 420 120 342 390 190 C 648 48 250 -105 396 -250");
+    }
   }
   .menu-row {
     @apply flex w-full items-center justify-between gap-4 px-6 py-3 text-left transition-colors;

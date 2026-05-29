@@ -8,6 +8,7 @@ import AvatarImage from "./AvatarImage";
 import { applyTheme } from "./ThemeToggle";
 
 type ThemeMode = "light" | "dark" | "system";
+const THEME_STORAGE_KEY = "studio-feed-theme-mode";
 
 export default function MobileMenu({
   isAuthed,
@@ -28,7 +29,7 @@ export default function MobileMenu({
   const [theme, setTheme] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") return "system";
 
-    const savedTheme = window.localStorage.getItem("studio-feed-theme");
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
     return isThemeMode(savedTheme) ? savedTheme : "system";
   });
   const menuRef = useRef<HTMLDivElement>(null);

@@ -19,11 +19,18 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var theme = localStorage.getItem("studio-feed-theme");
-                var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-                if (theme === "dark" || ((theme === "system" || !theme) && prefersDark)) {
-                  document.documentElement.classList.add("dark");
+                var mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+                var applyTheme = function () {
+                  var theme = localStorage.getItem("studio-feed-theme-mode") || "system";
+                  var useDark = theme === "dark" || (theme === "system" && mediaQuery.matches);
+                  document.documentElement.classList.toggle("light", theme === "light");
+                  document.documentElement.classList.toggle("dark", useDark);
+                };
+                applyTheme();
+                if (!localStorage.getItem("studio-feed-theme-mode")) {
+                  localStorage.setItem("studio-feed-theme-mode", "system");
                 }
+                mediaQuery.addEventListener("change", applyTheme);
               } catch {}
             `,
           }}
