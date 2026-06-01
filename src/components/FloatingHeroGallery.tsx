@@ -14,6 +14,8 @@ type MotionItem = HeroItem & {
   delay: number;
   duration: number;
   scale: number;
+  spreadX: number;
+  driftX: number;
   track: "primary" | "secondary" | "tertiary";
 };
 
@@ -22,6 +24,7 @@ export default function FloatingHeroGallery({ items }: { items: HeroItem[] }) {
     const base = items.length > 0 ? items : [];
     const repeatedItems = Array.from({ length: 22 }, (_, index) => base[index % base.length]);
     const sizes = [58, 66, 74, 62, 80, 68];
+    const spreads = [-430, -290, -120, 130, 300, 440, -360, 220, -210, 60, 380];
     const tracks: MotionItem["track"][] = ["primary", "secondary", "tertiary"];
 
     return repeatedItems.map((item, index) => ({
@@ -29,8 +32,10 @@ export default function FloatingHeroGallery({ items }: { items: HeroItem[] }) {
       id: `${item.id}-${index}`,
       size: sizes[index % sizes.length],
       delay: index * -0.6,
-      duration: 13.8 + (index % 3) * 0.7,
+      duration: 14,
       scale: 0.98 + (index % 3) * 0.02,
+      spreadX: spreads[index % spreads.length],
+      driftX: index % 2 === 0 ? 10 : -10,
       track: tracks[index % tracks.length],
     }));
   }, [items]);
@@ -47,6 +52,8 @@ export default function FloatingHeroGallery({ items }: { items: HeroItem[] }) {
               "--hero-card-delay": `${item.delay}s`,
               "--hero-card-duration": `${item.duration}s`,
               "--hero-card-scale": item.scale,
+              "--hero-card-spread-x": `${item.spreadX}px`,
+              "--hero-card-drift-x": `${item.driftX}px`,
             } as React.CSSProperties
           }
         >

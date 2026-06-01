@@ -193,31 +193,44 @@ b,
   .group:hover .group-hover\:scale-103 {
     transform: scale(1.03);
   }
+  .home-hero-section::before,
   .home-hero-section::after {
     content: "";
     position: absolute;
     left: 50%;
     top: 40%;
     width: min(760px, calc(100vw - 48px));
-    height: min(680px, calc(100vh - 140px));
+    height: min(340px, calc(100vh - 260px));
     transform: translate(-50%, -50%);
-    z-index: 1;
-    background: radial-gradient(
-      ellipse 70% 58% at center,
-      #ffffff 0%,
-      #ffffff 68%,
-      rgba(255, 255, 255, 0.92) 76%,
-      rgba(255, 255, 255, 0) 90%
-    );
     pointer-events: none;
+  }
+  .home-hero-section::before {
+    z-index: 1;
+    backdrop-filter: blur(22px) saturate(0.85);
+    mask-image: radial-gradient(
+      ellipse 50% 48% at center,
+      black 0%,
+      black 64%,
+      transparent 100%
+    );
+  }
+  .home-hero-section::after {
+    z-index: 2;
+    background: radial-gradient(
+      ellipse 50% 48% at center,
+      rgba(255, 255, 255, 0.78) 0%,
+      rgba(255, 255, 255, 0.72) 58%,
+      rgba(255, 255, 255, 0.32) 78%,
+      rgba(255, 255, 255, 0) 100%
+    );
   }
   .dark .home-hero-section::after {
     background: radial-gradient(
-      ellipse 70% 58% at center,
-      #101010 0%,
-      #101010 68%,
-      rgba(16, 16, 16, 0.9) 76%,
-      rgba(16, 16, 16, 0) 90%
+      ellipse 50% 48% at center,
+      rgba(16, 16, 16, 0.74) 0%,
+      rgba(16, 16, 16, 0.68) 58%,
+      rgba(16, 16, 16, 0.3) 78%,
+      rgba(16, 16, 16, 0) 100%
     );
   }
   .hero-flow-background {
@@ -235,7 +248,7 @@ b,
   .hero-flow-card {
     position: absolute;
     top: 0;
-    left: 0;
+    left: 50%;
     width: var(--hero-card-size);
     offset-rotate: 0deg;
     animation-name: hero-flow-travel;
@@ -246,16 +259,16 @@ b,
     will-change: offset-distance, transform;
     animation-fill-mode: both;
     filter: saturate(0.94) contrast(1);
-    transform: translate(-50%, -50%) scale(var(--hero-card-scale));
+    transform: translate(-50%, -50%) translateX(var(--hero-card-spread-x)) scale(var(--hero-card-scale));
   }
   .hero-flow-card-primary {
-    offset-path: path("M 585 1180 C 240 1000 245 770 570 620 C 930 455 925 305 600 170 C 265 30 260 -130 585 -300");
+    offset-path: path("M 0 1180 C -8 980 8 780 0 590 C -8 390 8 120 0 -300");
   }
   .hero-flow-card-secondary {
-    offset-path: path("M 600 1180 C 930 1005 925 770 585 620 C 240 465 245 310 575 170 C 925 25 930 -135 600 -300");
+    offset-path: path("M 0 1180 C 8 980 -8 780 0 590 C 8 390 -8 120 0 -300");
   }
   .hero-flow-card-tertiary {
-    offset-path: path("M 590 1180 C 745 1035 405 835 640 660 C 870 488 355 400 580 220 C 810 38 440 -112 590 -300");
+    offset-path: path("M 0 1180 C 5 980 -5 780 0 590 C -5 390 5 120 0 -300");
   }
   .hero-flow-image {
     display: block;
@@ -264,12 +277,68 @@ b,
     object-fit: cover;
     border-radius: 0;
   }
+  .login-visual-panel {
+    background:
+      radial-gradient(circle at 24% 20%, rgba(255, 255, 255, 0.62), transparent 30%),
+      linear-gradient(135deg, #e8e2d5 0%, #d8d2c4 46%, #c9d5d0 100%);
+  }
+  .dark .login-visual-panel {
+    background:
+      radial-gradient(circle at 24% 20%, rgba(255, 255, 255, 0.08), transparent 30%),
+      linear-gradient(135deg, #191714 0%, #242119 48%, #162320 100%);
+  }
+  .login-visual-panel .hero-flow-background {
+    width: min(680px, 112%);
+    height: calc(100% + 280px);
+    opacity: 0.92;
+    mask-image: linear-gradient(180deg, transparent 0%, black 12%, black 88%, transparent 100%);
+  }
+  .login-visual-panel .hero-flow-card {
+    width: calc(var(--hero-card-size) * 1.35);
+  }
+  .login-visual-panel .hero-flow-card-primary {
+    offset-path: path("M 0 1180 C -6 980 6 780 0 590 C -6 390 6 120 0 -300");
+  }
+  .login-visual-panel .hero-flow-card-secondary {
+    offset-path: path("M 0 1180 C 6 980 -6 780 0 590 C 6 390 -6 120 0 -300");
+  }
+  .login-visual-panel .hero-flow-card-tertiary {
+    offset-path: path("M 0 1180 C 4 980 -4 780 0 590 C -4 390 4 120 0 -300");
+  }
+  .login-visual-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 42%, transparent 0%, transparent 40%, rgba(0, 0, 0, 0.12) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.08));
+  }
+  .dark .login-visual-vignette {
+    background:
+      radial-gradient(circle at 50% 42%, transparent 0%, transparent 42%, rgba(0, 0, 0, 0.32) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.22));
+  }
   @keyframes hero-flow-travel {
     0% {
       offset-distance: 0%;
+      transform: translate(-50%, -50%) translateX(var(--hero-card-spread-x)) scale(var(--hero-card-scale));
+    }
+    25% {
+      offset-distance: 25%;
+      transform: translate(-50%, -50%) translateX(calc(var(--hero-card-spread-x) + var(--hero-card-drift-x))) scale(var(--hero-card-scale));
+    }
+    50% {
+      offset-distance: 50%;
+      transform: translate(-50%, -50%) translateX(var(--hero-card-spread-x)) scale(var(--hero-card-scale));
+    }
+    75% {
+      offset-distance: 75%;
+      transform: translate(-50%, -50%) translateX(calc(var(--hero-card-spread-x) - var(--hero-card-drift-x))) scale(var(--hero-card-scale));
     }
     100% {
       offset-distance: 100%;
+      transform: translate(-50%, -50%) translateX(var(--hero-card-spread-x)) scale(var(--hero-card-scale));
     }
   }
   @media (max-width: 640px) {
@@ -281,13 +350,13 @@ b,
       width: calc(var(--hero-card-size) * 0.74);
     }
     .hero-flow-card-primary {
-      offset-path: path("M 390 1060 C 70 910 80 710 378 570 C 710 415 705 285 402 170 C 85 45 80 -110 390 -250");
+      offset-path: path("M 0 1060 C -6 880 6 700 0 520 C -6 340 6 80 0 -250");
     }
     .hero-flow-card-secondary {
-      offset-path: path("M 402 1060 C 710 910 705 710 390 570 C 70 425 80 290 378 170 C 710 40 705 -115 402 -250");
+      offset-path: path("M 0 1060 C 6 880 -6 700 0 520 C 6 340 -6 80 0 -250");
     }
     .hero-flow-card-tertiary {
-      offset-path: path("M 396 1060 C 548 918 238 738 430 585 C 690 420 120 342 390 190 C 648 48 250 -105 396 -250");
+      offset-path: path("M 0 1060 C 4 880 -4 700 0 520 C -4 340 4 80 0 -250");
     }
   }
   .menu-row {

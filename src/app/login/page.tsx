@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import FloatingHeroGallery from "@/components/FloatingHeroGallery";
 import { createClient } from "@/lib/supabase/client";
+
+const loginGalleryItems = Array.from({ length: 12 }, (_, index) => ({
+  id: `login-gallery-${index}`,
+  title: `Studio reference ${index + 1}`,
+  thumbnail_url: `https://picsum.photos/seed/studio-feed-login-${index}/720/720`,
+}));
 
 export default function LoginPage() {
   const router = useRouter();
@@ -154,15 +160,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="relative hidden min-h-screen overflow-hidden lg:block">
-        <Image
-          src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=85"
-          alt=""
-          fill
-          priority
-          unoptimized
-          className="object-cover"
-        />
+      <div className="login-visual-panel relative hidden min-h-screen overflow-hidden lg:block">
+        <FloatingHeroGallery items={loginGalleryItems} />
+        <div className="login-visual-vignette" aria-hidden="true" />
       </div>
     </section>
   );
