@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import MobileMenu from "./MobileMenu";
 
 export default function HeaderUserMenu() {
   const supabase = createClient();
-  const [isAuthed, setIsAuthed] = useState(false);
+  const pathname = usePathname();
+  const isAdminPath = pathname.startsWith("/admin");
+  const [isAuthed, setIsAuthed] = useState(isAdminPath);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +64,16 @@ export default function HeaderUserMenu() {
   }, [supabase]);
 
   if (loading) {
-    return <span className="h-10 w-10" aria-hidden="true" />;
+    return isAdminPath ? (
+      <MobileMenu
+        isAuthed={true}
+        avatarUrl={avatarUrl}
+        showNavLinks={true}
+        showThemeToggle={true}
+      />
+    ) : (
+      <span className="site-header-menu-fallback" aria-hidden="true" />
+    );
   }
 
   if (!isAuthed) {
@@ -73,23 +85,11 @@ export default function HeaderUserMenu() {
   }
 
   return (
-    <>
-      <div className="md:hidden">
-        <MobileMenu
-          isAuthed={true}
-          avatarUrl={avatarUrl}
-          showNavLinks={true}
-          showThemeToggle={true}
-        />
-      </div>
-      <div className="hidden md:block">
-        <MobileMenu
-          isAuthed={true}
-          avatarUrl={avatarUrl}
-          showNavLinks={true}
-          showThemeToggle={true}
-        />
-      </div>
-    </>
+    <MobileMenu
+      isAuthed={true}
+      avatarUrl={avatarUrl}
+      showNavLinks={true}
+      showThemeToggle={true}
+    />
   );
 }

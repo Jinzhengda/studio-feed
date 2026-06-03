@@ -217,6 +217,10 @@ function improveImageUrlQuality(input: string) {
       url.searchParams.set("q", "90");
       url.searchParams.set("auto", "format");
     } else if (url.hostname.includes(".imgix.net")) {
+      // Pentagram and other imgix tenants sign URLs with `s=`; mutating params breaks them (403).
+      if (url.searchParams.has("s")) {
+        return input;
+      }
       url.searchParams.delete("h");
       url.searchParams.delete("dpr");
       url.searchParams.delete("blur");

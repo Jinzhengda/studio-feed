@@ -110,42 +110,44 @@ export default function WorksAdminPage() {
             共 {works.length} 条，{visibleCount} 条可见，{hiddenCount} 条隐藏
           </p>
         </div>
-        <button type="button" className="btn" onClick={loadWorks} disabled={loading}>
+        <button type="button" className="btn rounded-none" onClick={loadWorks} disabled={loading}>
           {loading ? "刷新中..." : "刷新列表"}
         </button>
       </div>
 
       {message && <p className="mt-4 text-sm text-[var(--muted)]">{message}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
-          <p className="text-sm text-[var(--muted)]">当前结果</p>
-          <p className="mt-2 text-3xl">{filteredWorks.length}</p>
+      <div className="admin-stats-grid">
+        <div className="admin-stat-card">
+          <p className="admin-stat-label">当前结果</p>
+          <p className="admin-stat-value">{filteredWorks.length}</p>
         </div>
-        <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
-          <p className="text-sm text-[var(--muted)]">结果中可见</p>
-          <p className="mt-2 text-3xl">{filteredVisibleCount}</p>
+        <div className="admin-stat-card">
+          <p className="admin-stat-label">结果中可见</p>
+          <p className="admin-stat-value">{filteredVisibleCount}</p>
         </div>
-        <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
-          <p className="text-sm text-[var(--muted)]">结果中隐藏</p>
-          <p className="mt-2 text-3xl">{filteredHiddenCount}</p>
+        <div className="admin-stat-card">
+          <p className="admin-stat-label">结果中隐藏</p>
+          <p className="admin-stat-value">{filteredHiddenCount}</p>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="admin-filter-bar mt-6">
         <input
-          className="h-11 w-full rounded-full border border-[var(--stroke)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:max-w-sm"
+          className="admin-search-input"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索标题、工作室或链接"
         />
-        <div className="inline-flex w-fit items-center gap-4 text-sm">
+        <div className="admin-filter-group">
           {(["all", "visible", "hidden"] as const).map((item) => (
             <button
               key={item}
               type="button"
-              className={`home-sort-pill ${
-                visibility === item ? "home-sort-pill-active" : "home-sort-pill-idle"
+              className={`admin-filter-pill ${
+                visibility === item
+                  ? "admin-filter-pill-active"
+                  : "admin-filter-pill-idle"
               }`}
               onClick={() => setVisibility(item)}
             >
@@ -208,7 +210,7 @@ export default function WorksAdminPage() {
             {works.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
           </p>
         )}
-        {loading && <p className="text-sm text-[var(--muted)]">加载中...</p>}
+        {loading && <WorksCardSkeleton />}
       </div>
 
       <table className="mt-2 hidden w-full border-collapse text-sm md:table">
@@ -273,14 +275,58 @@ export default function WorksAdminPage() {
             </tr>
           )}
           {loading && (
-            <tr>
-              <td className="py-5 text-sm text-[var(--muted)]" colSpan={5}>
-                加载中...
-              </td>
-            </tr>
+            <WorksTableSkeleton />
           )}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function WorksCardSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 4 }).map((_, index) => (
+        <article key={index} className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="w-full min-w-0 space-y-3">
+              <div className="admin-skeleton-line h-5 w-3/4" />
+              <div className="admin-skeleton-line w-1/2" />
+            </div>
+            <div className="admin-skeleton-line h-3 w-10 shrink-0" />
+          </div>
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <div className="admin-skeleton-line w-24" />
+            <div className="admin-skeleton-line w-32" />
+          </div>
+        </article>
+      ))}
+    </>
+  );
+}
+
+function WorksTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, index) => (
+        <tr key={index}>
+          <td className="border-b border-[var(--stroke)] py-3">
+            <div className="admin-skeleton-line w-3/4" />
+          </td>
+          <td className="border-b border-[var(--stroke)] py-3">
+            <div className="admin-skeleton-line w-20" />
+          </td>
+          <td className="border-b border-[var(--stroke)] py-3">
+            <div className="admin-skeleton-line w-24" />
+          </td>
+          <td className="border-b border-[var(--stroke)] py-3">
+            <div className="admin-skeleton-line w-8" />
+          </td>
+          <td className="border-b border-[var(--stroke)] py-3">
+            <div className="admin-skeleton-line w-32" />
+          </td>
+        </tr>
+      ))}
+    </>
   );
 }

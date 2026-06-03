@@ -55,6 +55,8 @@ const demoWorks: WorkCard[] = Array.from({ length: 10 }).map((_, i) => {
   };
 });
 
+const HOME_PAGE_SIZE = 20;
+
 export default async function HomePage() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -117,7 +119,8 @@ export default async function HomePage() {
     )
     .eq("is_visible", true)
     .gte("first_seen_at", sixMonthsAgo.toISOString())
-    .order("first_seen_at", { ascending: false });
+    .order("first_seen_at", { ascending: false })
+    .range(0, HOME_PAGE_SIZE - 1);
 
   const works: WorkCard[] =
     (data as WorkRow[] | null)?.map((w) => {
@@ -142,7 +145,7 @@ export default async function HomePage() {
 
   return (
     <section className="mx-auto max-w-6xl px-3 py-2 sm:px-6 sm:py-12">
-      <MasonryGrid works={uniqueWorks} />
+      <MasonryGrid works={uniqueWorks} pageSize={HOME_PAGE_SIZE} />
     </section>
   );
 }

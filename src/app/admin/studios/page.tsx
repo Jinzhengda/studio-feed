@@ -39,6 +39,9 @@ export default function StudiosAdminPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [activeStudioId, setActiveStudioId] = useState<string | null>(null);
+  const [latestWorkThumbByStudioId, setLatestWorkThumbByStudioId] = useState<
+    Record<string, string>
+  >({});
 
   function showToast(text: string) {
     setToast(text);
@@ -46,29 +49,74 @@ export default function StudiosAdminPage() {
   }
 
   async function saveCoverUrl(url: string) {
+    const studioId = form.id;
     setForm((prev) => ({ ...prev, cover_url: url }));
-    if (!form.id) return;
+    if (!studioId) return;
+
     const { error } = await supabase
       .from("studios")
       .update({ cover_url: url })
-      .eq("id", form.id);
+      .eq("id", studioId);
     if (error) {
       setMessage(error.message);
       return;
     }
-    showToast("封面图已保存");
+    showToast("兜底封面已保存");
     loadStudios();
+  }
+
+  function isDisplayableThumb(url: string | null | undefined) {
+    if (!url) return false;
+    if (url.startsWith("data:image/svg+xml")) return false;
+    return true;
+  }
+
+  function coverStatus(studio: Studio) {
+    if (studio.cover_url) {
+      return {
+        label: "兜底已设置",
+        preview: studio.cover_url,
+        hint: "抓取失败时首页会用这张图",
+      };
+    }
+    const workThumb = latestWorkThumbByStudioId[studio.id];
+    if (isDisplayableThumb(workThumb)) {
+      return {
+        label: "仅作品图",
+        preview: workThumb,
+        hint: "首页主图来自抓取，建议上传兜底封面",
+      };
+    }
+    return {
+      label: "无图",
+      preview: null,
+      hint: "请抓取作品或上传兜底封面",
+    };
   }
 
   async function loadStudios() {
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from("studios")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [{ data: studioRows }, { data: workRows }] = await Promise.all([
+        supabase.from("studios").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("works")
+          .select("studio_id,thumbnail_url,first_seen_at")
+          .eq("is_visible", true)
+          .not("thumbnail_url", "is", null)
+          .order("first_seen_at", { ascending: false }),
+      ]);
 
-      setStudios((data as Studio[]) || []);
+      setStudios((studioRows as Studio[]) || []);
+
+      const latest: Record<string, string> = {};
+      for (const work of workRows || []) {
+        const studioId = work.studio_id as string;
+        const thumb = work.thumbnail_url as string;
+        if (!studioId || latest[studioId] || !isDisplayableThumb(thumb)) continue;
+        latest[studioId] = thumb;
+      }
+      setLatestWorkThumbByStudioId(latest);
     } finally {
       setLoading(false);
     }
@@ -98,6 +146,7 @@ export default function StudiosAdminPage() {
   });
   const activeCount = studios.filter((studio) => studio.is_active).length;
   const inactiveCount = studios.length - activeCount;
+  const fallbackCoverCount = studios.filter((studio) => studio.cover_url).length;
 
   function openCreateForm() {
     setForm({ ...emptyForm });
@@ -236,16 +285,17 @@ export default function StudiosAdminPage() {
           <div>
             <h2 className="text-lg font-medium">工作室列表</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              共 {studios.length} 家，{activeCount} 家启用，{inactiveCount} 家停用
+              共 {studios.length} 家，{activeCount} 家启用，{inactiveCount} 家停用，{fallbackCoverCount}{" "}
+              家已上传兜底封面
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button type="button" className="btn" onClick={openCreateForm}>
+            <button type="button" className="btn rounded-none" onClick={openCreateForm}>
               新增工作室
             </button>
             <button
               type="button"
-              className="btn"
+              className="btn rounded-none"
               onClick={refreshDemo}
               disabled={refreshing}
             >
@@ -259,35 +309,37 @@ export default function StudiosAdminPage() {
           </p>
         )}
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-3">
-          <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
-            <p className="text-sm text-[var(--muted)]">筛选结果</p>
-            <p className="mt-2 text-3xl">{filteredStudios.length}</p>
+        <div className="admin-stats-grid">
+          <div className="admin-stat-card">
+            <p className="admin-stat-label">筛选结果</p>
+            <p className="admin-stat-value">{filteredStudios.length}</p>
           </div>
-          <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
-            <p className="text-sm text-[var(--muted)]">已启用</p>
-            <p className="mt-2 text-3xl">{activeCount}</p>
+          <div className="admin-stat-card">
+            <p className="admin-stat-label">已启用</p>
+            <p className="admin-stat-value">{activeCount}</p>
           </div>
-          <div className="border border-[var(--stroke)] bg-[var(--card)] p-4">
-            <p className="text-sm text-[var(--muted)]">未启用</p>
-            <p className="mt-2 text-3xl">{inactiveCount}</p>
+          <div className="admin-stat-card">
+            <p className="admin-stat-label">未启用</p>
+            <p className="admin-stat-value">{inactiveCount}</p>
           </div>
         </div>
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="admin-filter-bar mb-6">
           <input
-            className="h-11 w-full rounded-full border border-[var(--stroke)] px-4 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white sm:max-w-sm"
+            className="admin-search-input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索名称、官网、地区或标签"
           />
-          <div className="inline-flex w-fit items-center gap-4 text-sm">
+          <div className="admin-filter-group">
             {(["all", "active", "inactive"] as const).map((item) => (
               <button
                 key={item}
                 type="button"
-                className={`home-sort-pill ${
-                  statusFilter === item ? "home-sort-pill-active" : "home-sort-pill-idle"
+                className={`admin-filter-pill ${
+                  statusFilter === item
+                    ? "admin-filter-pill-active"
+                    : "admin-filter-pill-idle"
                 }`}
                 onClick={() => setStatusFilter(item)}
               >
@@ -298,7 +350,7 @@ export default function StudiosAdminPage() {
         </div>
 
         {loading ? (
-          <p className="mt-5 text-sm text-[var(--muted)]">加载中...</p>
+          <StudiosLoadingSkeleton />
         ) : (
           <>
             <div className="grid gap-4 md:hidden">
@@ -321,7 +373,7 @@ export default function StudiosAdminPage() {
                   <div className="mt-4 space-y-2 text-sm text-[var(--muted)]">
                     <p className="truncate">{studio.website_url || "未设置官网"}</p>
                     <p className="truncate">{studio.feed_url || "未设置抓取地址"}</p>
-                    <p>{studio.cover_url ? "已设置封面图" : "未设置封面图"}</p>
+                    <p>{coverStatus(studio).label}</p>
                   </div>
                   <div className="mt-4 flex gap-3">
                     <button className="btn-text" onClick={() => openEditForm(studio)}>
@@ -349,7 +401,7 @@ export default function StudiosAdminPage() {
                 <tr className="text-left">
                   <th className="border-b border-[var(--stroke)] py-3">名称</th>
                   <th className="border-b border-[var(--stroke)] py-3">官网</th>
-                  <th className="border-b border-[var(--stroke)] py-3">封面</th>
+                  <th className="border-b border-[var(--stroke)] py-3">兜底封面</th>
                   <th className="border-b border-[var(--stroke)] py-3">启用</th>
                   <th className="border-b border-[var(--stroke)] py-3">操作</th>
                 </tr>
@@ -364,7 +416,29 @@ export default function StudiosAdminPage() {
                       {studio.website_url || "-"}
                     </td>
                     <td className="border-b border-[var(--stroke)] py-3">
-                      {studio.cover_url ? "已设置" : "未设置"}
+                      {(() => {
+                        const status = coverStatus(studio);
+                        return (
+                          <div className="flex items-center gap-3">
+                            {status.preview ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={status.preview}
+                                alt=""
+                                className="h-10 w-14 shrink-0 border border-[var(--stroke)] object-cover"
+                              />
+                            ) : (
+                              <span className="inline-flex h-10 w-14 shrink-0 items-center justify-center border border-dashed border-[var(--stroke)] text-[10px] text-[var(--muted)]">
+                                无图
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <p>{status.label}</p>
+                              <p className="text-xs text-[var(--muted)]">{status.hint}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="border-b border-[var(--stroke)] py-3">
                       {studio.is_active ? "是" : "否"}
@@ -448,7 +522,7 @@ export default function StudiosAdminPage() {
               </div>
 
               <div>
-                <label className="text-sm">封面图 URL（抓取失败时用）</label>
+                <label className="text-sm">兜底封面 URL（仅作品图加载失败时显示）</label>
                 <input
                   className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
                   value={form.cover_url}
@@ -518,5 +592,63 @@ export default function StudiosAdminPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function StudiosLoadingSkeleton() {
+  return (
+    <>
+      <div className="grid gap-4 md:hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <article key={index} className="border border-[var(--stroke)] bg-[var(--card)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="w-full min-w-0 space-y-3">
+                <div className="admin-skeleton-line h-5 w-1/2" />
+                <div className="admin-skeleton-line w-32" />
+              </div>
+              <div className="admin-skeleton-line h-3 w-10 shrink-0" />
+            </div>
+            <div className="mt-5 space-y-3">
+              <div className="admin-skeleton-line w-3/4" />
+              <div className="admin-skeleton-line w-2/3" />
+              <div className="admin-skeleton-line w-28" />
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <table className="hidden w-full border-collapse text-sm md:table">
+        <thead>
+          <tr className="text-left">
+            <th className="border-b border-[var(--stroke)] py-3">名称</th>
+            <th className="border-b border-[var(--stroke)] py-3">官网</th>
+            <th className="border-b border-[var(--stroke)] py-3">兜底封面</th>
+            <th className="border-b border-[var(--stroke)] py-3">启用</th>
+            <th className="border-b border-[var(--stroke)] py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 8 }).map((_, index) => (
+            <tr key={index}>
+              <td className="border-b border-[var(--stroke)] py-3">
+                <div className="admin-skeleton-line w-24" />
+              </td>
+              <td className="border-b border-[var(--stroke)] py-3">
+                <div className="admin-skeleton-line w-48" />
+              </td>
+              <td className="border-b border-[var(--stroke)] py-3">
+                <div className="admin-skeleton-line w-52" />
+              </td>
+              <td className="border-b border-[var(--stroke)] py-3">
+                <div className="admin-skeleton-line w-8" />
+              </td>
+              <td className="border-b border-[var(--stroke)] py-3">
+                <div className="admin-skeleton-line w-20" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import WorkImage from "./WorkImage";
 
@@ -14,13 +14,51 @@ type Work = {
   first_seen_at: string;
 };
 
-export default function MasonryGrid({ works }: { works: Work[] }) {
+export default function MasonryGrid({
+  works: initialWorks,
+  pageSize = 20,
+}: {
+  works: Work[];
+  pageSize?: number;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadTriggerScrollYRef = useRef(-1000);
   const searchParams = useSearchParams();
+  const [works, setWorks] = useState(initialWorks);
   const [columns, setColumns] = useState(2);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(initialWorks.length >= pageSize);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const query = searchParams.get("q") || "";
   const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
   const randomSeed = Number(searchParams.get("seed") || 0);
+
+  const loadMoreWorks = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(`/api/works?page=${page}&limit=${pageSize}`);
+      if (!response.ok) {
+        setHasMore(false);
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        works?: Work[];
+        hasMore?: boolean;
+        nextPage?: number;
+      };
+      const incomingWorks = payload.works || [];
+
+      setWorks((currentWorks) => dedupeWorks([...currentWorks, ...incomingWorks]));
+      setPage(payload.nextPage ?? page + 1);
+      setHasMore(Boolean(payload.hasMore));
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, page, pageSize]);
 
   useEffect(() => {
     function updateColumns() {
@@ -35,6 +73,26 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
     window.addEventListener("resize", updateColumns);
     return () => window.removeEventListener("resize", updateColumns);
   }, []);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          const scrollY = window.scrollY;
+          if (Math.abs(scrollY - loadTriggerScrollYRef.current) < 160) return;
+          loadTriggerScrollYRef.current = scrollY;
+          void loadMoreWorks();
+        }
+      },
+      { rootMargin: "420px 0px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, loadMoreWorks, page]);
 
   const displayedWorks = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -107,8 +165,13 @@ export default function MasonryGrid({ works }: { works: Work[] }) {
       {displayedWorks.length === 0 && (
         <p className="py-10 text-sm text-[var(--muted)]">没有符合搜索的作品</p>
       )}
+
+      <div ref={sentinelRef} aria-hidden="true" />
+
+      {isLoadingMore && <MasonrySkeleton columns={columns} />}
     </div>
   );
+
 }
 
 function seededScore(input: string, seed: number) {
@@ -118,4 +181,49 @@ function seededScore(input: string, seed: number) {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+function dedupeWorks(works: Work[]) {
+  const seen = new Set<string>();
+
+  return works.filter((work) => {
+    const key = work.work_url || work.id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function MasonrySkeleton({ columns }: { columns: number }) {
+  const columnItems = Array.from({ length: columns }, (_, columnIndex) =>
+    Array.from({ length: 2 }, (_, itemIndex) => columnIndex * 2 + itemIndex)
+  );
+
+  return (
+    <div
+      className="mt-6 grid gap-6 sm:gap-7 lg:gap-8"
+      style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+    >
+      {columnItems.map((items, columnIndex) => (
+        <div key={columnIndex} className="flex flex-col gap-6 sm:gap-7 lg:gap-8">
+          {items.map((item) => (
+            <div
+              key={item}
+              className="overflow-hidden border border-[var(--stroke)] bg-[var(--card)]"
+            >
+              <div
+                className="admin-skeleton-block"
+                style={{ height: item % 3 === 0 ? 260 : item % 3 === 1 ? 340 : 300 }}
+              />
+              <div className="space-y-3 p-3 sm:p-4">
+                <div className="admin-skeleton-line w-24" />
+                <div className="admin-skeleton-line h-5 w-3/4" />
+                <div className="admin-skeleton-line w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }

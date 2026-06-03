@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -9,6 +9,7 @@ import { applyTheme } from "./ThemeToggle";
 
 type ThemeMode = "light" | "dark" | "system";
 const THEME_STORAGE_KEY = "studio-feed-theme-mode";
+const THEME_CHANGE_EVENT = "studio-feed-theme-change";
 
 export default function MobileMenu({
   isAuthed,
@@ -26,12 +27,7 @@ export default function MobileMenu({
   const searchParams = useSearchParams();
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "system";
-
-    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return isThemeMode(savedTheme) ? savedTheme : "system";
-  });
+  const theme = useSyncExternalStore(subscribeThemeMode, getThemeMode, getServerThemeMode);
   const menuRef = useRef<HTMLDivElement>(null);
   const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
 
@@ -82,26 +78,23 @@ export default function MobileMenu({
 
   function chooseTheme(nextTheme: ThemeMode) {
     applyTheme(nextTheme);
-    setTheme(nextTheme);
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
+  }
+
+  function toggleMenu() {
+    setIsOpen((value) => !value);
   }
 
   return (
     <div className="relative" ref={menuRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#e5e5e5] transition-colors hover:bg-black/5"
+        type="button"
+        onClick={toggleMenu}
+        className="site-header-avatar-button"
         aria-label="Menu"
+        aria-expanded={isOpen}
       >
-        {avatarUrl ? (
-          <AvatarImage
-            src={avatarUrl}
-            alt="Avatar"
-            size={36}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <span className="text-sm font-medium">U</span>
-        )}
+        <HeaderMenuIcon />
       </button>
 
       <div
@@ -237,6 +230,20 @@ export default function MobileMenu({
   );
 }
 
+export function HeaderMenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+      <path
+        d="M4 5H20M4 12H20M4 19H20"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function SegmentedControl({ children }: { children: React.ReactNode }) {
   return <div className="menu-toggle">{children}</div>;
 }
@@ -255,6 +262,25 @@ function iconSegmentClass(active: boolean) {
 
 function isThemeMode(value: string | null): value is ThemeMode {
   return value === "light" || value === "dark" || value === "system";
+}
+
+function getThemeMode(): ThemeMode {
+  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  return isThemeMode(savedTheme) ? savedTheme : "system";
+}
+
+function getServerThemeMode(): ThemeMode {
+  return "system";
+}
+
+function subscribeThemeMode(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(THEME_CHANGE_EVENT, callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(THEME_CHANGE_EVENT, callback);
+  };
 }
 
 function createRandomSeed() {
