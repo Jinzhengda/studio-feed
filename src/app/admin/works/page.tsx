@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { shouldDisplayWork } from "@/lib/work-rules";
 
 type Work = {
   id: string;
@@ -47,7 +48,8 @@ export default function WorksAdminPage() {
   }, []);
 
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredWorks = works.filter((work) => {
+  const displayWorks = works.filter((work) => shouldDisplayWork(work));
+  const filteredWorks = displayWorks.filter((work) => {
     const studioName = getStudioName(work).toLowerCase();
     const matchesQuery =
       !normalizedQuery ||
@@ -62,8 +64,8 @@ export default function WorksAdminPage() {
 
     return matchesQuery && matchesVisibility;
   });
-  const visibleCount = works.filter((work) => work.is_visible).length;
-  const hiddenCount = works.length - visibleCount;
+  const visibleCount = displayWorks.filter((work) => work.is_visible).length;
+  const hiddenCount = displayWorks.length - visibleCount;
   const filteredVisibleCount = filteredWorks.filter((work) => work.is_visible).length;
   const filteredHiddenCount = filteredWorks.length - filteredVisibleCount;
 
@@ -107,7 +109,7 @@ export default function WorksAdminPage() {
         <div>
           <h1 className="text-2xl font-semibold">作品管理</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            共 {works.length} 条，{visibleCount} 条可见，{hiddenCount} 条隐藏
+            共 {displayWorks.length} 条，{visibleCount} 条可见，{hiddenCount} 条隐藏
           </p>
         </div>
         <button type="button" className="btn rounded-none" onClick={loadWorks} disabled={loading}>
@@ -207,7 +209,7 @@ export default function WorksAdminPage() {
           ))}
         {!loading && filteredWorks.length === 0 && (
           <p className="text-sm text-[var(--muted)]">
-            {works.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
+            {displayWorks.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
           </p>
         )}
         {loading && <WorksCardSkeleton />}
@@ -270,7 +272,7 @@ export default function WorksAdminPage() {
           {!loading && filteredWorks.length === 0 && (
             <tr>
               <td className="py-5 text-sm text-[var(--muted)]" colSpan={5}>
-                {works.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
+                {displayWorks.length === 0 ? "暂无作品" : "没有符合筛选的作品"}
               </td>
             </tr>
           )}

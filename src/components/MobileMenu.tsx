@@ -98,7 +98,7 @@ export default function MobileMenu({
       </button>
 
       <div
-        className={`menu-panel absolute right-0 z-50 mt-2 w-[240px] overflow-hidden rounded-none border border-[var(--stroke)] bg-[var(--bg)] shadow-lg transition-opacity ${
+        className={`menu-panel absolute right-0 top-full z-50 mt-[18px] w-[240px] overflow-hidden rounded-none border border-[var(--stroke)] bg-[var(--bg)] shadow-lg transition-opacity ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >

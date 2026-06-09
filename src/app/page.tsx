@@ -2,6 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import MasonryGrid from "@/components/MasonryGrid";
 import Link from "next/link";
 import FloatingHeroGallery from "@/components/FloatingHeroGallery";
+import {
+  extractDateFromMediaVersion,
+  shouldDisplayWork,
+  shouldPreferCaptureDate,
+} from "@/lib/work-rules";
 
 export const revalidate = 0;
 
@@ -56,22 +61,96 @@ const demoWorks: WorkCard[] = Array.from({ length: 10 }).map((_, i) => {
 });
 
 const HOME_PAGE_SIZE = 20;
+const HOME_CANDIDATE_SIZE = 320;
+const SUPPLEMENTAL_WORK_URL_PATTERN = "%weareink.co.uk%";
+
+function getStudio(
+  studios: WorkRow["studios"]
+) {
+  return Array.isArray(studios) ? studios[0] : studios;
+}
+
+function toWorkCard(row: WorkRow): WorkCard {
+  const studio = getStudio(row.studios);
+  const effectiveDate =
+    shouldPreferCaptureDate(row.work_url)
+      ? row.created_at ||
+        row.first_seen_at ||
+        row.published_at ||
+        new Date().toISOString()
+      : row.published_at ||
+        row.first_seen_at ||
+        extractDateFromMediaVersion(row.thumbnail_url) ||
+        row.created_at ||
+        new Date().toISOString();
+
+  return {
+    id: row.id,
+    title: row.title || "Untitled",
+    studio: studio?.name || "Unknown Studio",
+    thumbnail_url: row.thumbnail_url || "",
+    studio_cover_url: studio?.cover_url || "",
+    work_url: row.work_url || "#",
+    published_at: effectiveDate,
+    created_at: row.created_at || new Date().toISOString(),
+    first_seen_at: row.first_seen_at || effectiveDate,
+  };
+}
+
+function prepareWorks(rows: WorkRow[] | null | undefined, limit: number) {
+  const seen = new Set<string>();
+
+  return (rows || [])
+    .filter((row) => shouldDisplayWork(row))
+    .map(toWorkCard)
+    .filter((work) => work.studio !== "立入禁止")
+    .filter((work) => {
+      const key = work.work_url || work.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+    )
+    .slice(0, limit);
+}
 
 export default async function HomePage() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
 
   if (!userData.user) {
-    const { data: heroData } = await supabase
-      .from("works")
-      .select("id,title,thumbnail_url")
-      .eq("is_visible", true)
-      .not("thumbnail_url", "is", null)
-      .order("first_seen_at", { ascending: false })
-      .limit(22);
+    const [{ data: heroPublished }, { data: heroRecent }] = await Promise.all([
+      supabase
+        .from("works")
+        .select("id,title,thumbnail_url,work_url")
+        .eq("is_visible", true)
+        .not("thumbnail_url", "is", null)
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("first_seen_at", { ascending: false })
+        .limit(40),
+      supabase
+        .from("works")
+        .select("id,title,thumbnail_url,work_url")
+        .eq("is_visible", true)
+        .not("thumbnail_url", "is", null)
+        .order("first_seen_at", { ascending: false })
+        .limit(40),
+    ]);
+    const heroData = [...(heroPublished || []), ...(heroRecent || [])];
+    const seenHero = new Set<string>();
     const heroWorks =
-      (heroData as Pick<WorkRow, "id" | "title" | "thumbnail_url">[] | null)
-        ?.map((work) => ({
+      (heroData as Pick<WorkRow, "id" | "title" | "thumbnail_url" | "work_url">[])
+        .filter((work) => shouldDisplayWork(work))
+        .filter((work) => {
+          const key = work.thumbnail_url || work.id;
+          if (seenHero.has(key)) return false;
+          seenHero.add(key);
+          return true;
+        })
+        .map((work) => ({
           id: work.id,
           title: work.title || "Untitled",
           thumbnail_url: work.thumbnail_url || "",
@@ -80,7 +159,7 @@ export default async function HomePage() {
 
     return (
       <section className="home-hero-section relative h-[calc(100vh-49px)] overflow-hidden px-10 py-8">
-        <FloatingHeroGallery items={heroWorks} />
+        <FloatingHeroGallery items={heroWorks.length ? heroWorks : demoWorks} />
         <div className="absolute left-1/2 top-[40%] z-10 flex w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col items-center px-10 text-center">
           <h1 className="max-w-3xl text-5xl font-medium leading-[1.02] sm:text-[56px]">
             你的设计灵感<wbr />
@@ -112,40 +191,48 @@ export default async function HomePage() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-  const { data } = await supabase
-    .from("works")
-    .select(
-      "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios(name, cover_url)"
-    )
-    .eq("is_visible", true)
-    .gte("first_seen_at", sixMonthsAgo.toISOString())
-    .order("first_seen_at", { ascending: false })
-    .range(0, HOME_PAGE_SIZE - 1);
+  const selectColumns =
+    "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios(name, cover_url)";
+  const [{ data: publishedData }, { data: recentData }, { data: supplementalData }] = await Promise.all([
+    supabase
+      .from("works")
+      .select(selectColumns)
+      .eq("is_visible", true)
+      .not("thumbnail_url", "is", null)
+      .gte("first_seen_at", sixMonthsAgo.toISOString())
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("first_seen_at", { ascending: false })
+      .range(0, HOME_CANDIDATE_SIZE - 1),
+    supabase
+      .from("works")
+      .select(selectColumns)
+      .eq("is_visible", true)
+      .not("thumbnail_url", "is", null)
+      .gte("first_seen_at", sixMonthsAgo.toISOString())
+      .order("first_seen_at", { ascending: false })
+      .range(0, HOME_CANDIDATE_SIZE - 1),
+    supabase
+      .from("works")
+      .select(selectColumns)
+      .eq("is_visible", true)
+      .not("thumbnail_url", "is", null)
+      .ilike("work_url", SUPPLEMENTAL_WORK_URL_PATTERN)
+      .order("first_seen_at", { ascending: false })
+      .limit(60),
+  ]);
 
-  const works: WorkCard[] =
-    (data as WorkRow[] | null)?.map((w) => {
-      const studio = Array.isArray(w.studios) ? w.studios[0] : w.studios;
-      return {
-        id: w.id,
-        title: w.title || "Untitled",
-        studio: studio?.name || "Unknown Studio",
-        thumbnail_url: w.thumbnail_url || "",
-        studio_cover_url: studio?.cover_url || "",
-        work_url: w.work_url || "#",
-        published_at: w.published_at || new Date().toISOString(),
-        created_at: w.created_at || new Date().toISOString(),
-        first_seen_at: w.first_seen_at || new Date().toISOString(),
-      };
-    }).filter((work) => work.studio !== "立入禁止") || demoWorks;
-
-  // 去重：根据 work_url 去重
-  const uniqueWorks = works.filter((work, index, self) =>
-    index === self.findIndex((w) => w.work_url === work.work_url)
+  const uniqueWorks = prepareWorks(
+    [
+      ...((publishedData as WorkRow[] | null) || []),
+      ...((recentData as WorkRow[] | null) || []),
+      ...((supplementalData as WorkRow[] | null) || []),
+    ],
+    HOME_PAGE_SIZE
   );
 
   return (
-    <section className="mx-auto max-w-6xl px-3 py-2 sm:px-6 sm:py-12">
-      <MasonryGrid works={uniqueWorks} pageSize={HOME_PAGE_SIZE} />
+    <section className="mx-auto max-w-6xl px-6 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
+      <MasonryGrid works={uniqueWorks.length ? uniqueWorks : demoWorks} pageSize={HOME_PAGE_SIZE} />
     </section>
   );
 }

@@ -59,7 +59,7 @@ export default function LoginPage() {
 
   return (
     <section className="grid min-h-screen lg:grid-cols-2">
-      <div className="flex min-h-[520px] items-center justify-center px-10 py-12">
+      <div className="flex min-h-[520px] items-center justify-center px-6 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
         <div className="w-full max-w-[320px]">
           <h1 className="text-3xl font-semibold">欢迎回来</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CoverUploader from "@/components/CoverUploader";
+import { isUsableWorkThumbnail, shouldDisplayWork } from "@/lib/work-rules";
 
 type Studio = {
   id: string;
@@ -66,9 +67,7 @@ export default function StudiosAdminPage() {
   }
 
   function isDisplayableThumb(url: string | null | undefined) {
-    if (!url) return false;
-    if (url.startsWith("data:image/svg+xml")) return false;
-    return true;
+    return isUsableWorkThumbnail(url);
   }
 
   function coverStatus(studio: Studio) {
@@ -101,7 +100,7 @@ export default function StudiosAdminPage() {
         supabase.from("studios").select("*").order("created_at", { ascending: false }),
         supabase
           .from("works")
-          .select("studio_id,thumbnail_url,first_seen_at")
+          .select("studio_id,thumbnail_url,work_url,first_seen_at")
           .eq("is_visible", true)
           .not("thumbnail_url", "is", null)
           .order("first_seen_at", { ascending: false }),
@@ -113,7 +112,7 @@ export default function StudiosAdminPage() {
       for (const work of workRows || []) {
         const studioId = work.studio_id as string;
         const thumb = work.thumbnail_url as string;
-        if (!studioId || latest[studioId] || !isDisplayableThumb(thumb)) continue;
+        if (!studioId || latest[studioId] || !shouldDisplayWork(work)) continue;
         latest[studioId] = thumb;
       }
       setLatestWorkThumbByStudioId(latest);

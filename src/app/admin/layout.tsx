@@ -14,7 +14,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+    <section className="mx-auto max-w-6xl px-6 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
       {children}
     </section>
   );

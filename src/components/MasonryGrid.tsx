@@ -11,6 +11,7 @@ type Work = {
   thumbnail_url: string;
   studio_cover_url?: string | null;
   work_url: string;
+  published_at?: string | null;
   first_seen_at: string;
 };
 
@@ -78,20 +79,34 @@ export default function MasonryGrid({
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore || isLoadingMore) return;
 
+    function maybeLoadMore() {
+      const distanceToBottom =
+        document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+      if (distanceToBottom > 1200) return;
+
+      const scrollY = window.scrollY;
+      if (Math.abs(scrollY - loadTriggerScrollYRef.current) < 160) return;
+      loadTriggerScrollYRef.current = scrollY;
+      void loadMoreWorks();
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          const scrollY = window.scrollY;
-          if (Math.abs(scrollY - loadTriggerScrollYRef.current) < 160) return;
-          loadTriggerScrollYRef.current = scrollY;
-          void loadMoreWorks();
+          maybeLoadMore();
         }
       },
       { rootMargin: "420px 0px" }
     );
 
     observer.observe(sentinel);
-    return () => observer.disconnect();
+    window.addEventListener("scroll", maybeLoadMore, { passive: true });
+    maybeLoadMore();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", maybeLoadMore);
+    };
   }, [hasMore, isLoadingMore, loadMoreWorks, page]);
 
   const displayedWorks = useMemo(() => {
@@ -112,10 +127,7 @@ export default function MasonryGrid({
       });
     }
 
-    return [...filtered].sort(
-      (a, b) =>
-        new Date(b.first_seen_at).getTime() - new Date(a.first_seen_at).getTime()
-    );
+    return [...filtered].sort((a, b) => getSortTime(b) - getSortTime(a));
   }, [query, randomSeed, sortMode, works]);
 
   // 将作品分配到各列
@@ -151,7 +163,7 @@ export default function MasonryGrid({
                 </div>
                 <div className="p-3 sm:p-4">
                   <div className="text-xs text-[var(--muted)]">
-                    {new Date(work.first_seen_at).toLocaleDateString("zh-CN")}
+                    {new Date(work.published_at || work.first_seen_at).toLocaleDateString("zh-CN")}
                   </div>
                   <h3 className="mt-2 text-sm font-medium sm:text-lg">{work.title}</h3>
                   <p className="mt-1 text-sm text-[var(--muted)]">{work.studio}</p>
@@ -181,6 +193,10 @@ function seededScore(input: string, seed: number) {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+function getSortTime(work: Work) {
+  return new Date(work.published_at || work.first_seen_at).getTime();
 }
 
 function dedupeWorks(works: Work[]) {

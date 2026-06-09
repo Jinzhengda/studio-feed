@@ -161,6 +161,18 @@ b,
     height: 60px;
     padding: 18px 24px;
   }
+  @media (min-width: 640px) {
+    .site-header-inner {
+      padding-right: 28px;
+      padding-left: 28px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .site-header-inner {
+      padding-right: 32px;
+      padding-left: 32px;
+    }
+  }
   .site-header-brand {
     font-family: Georgia, "Times New Roman", serif;
     font-size: 24px;
@@ -180,9 +192,13 @@ b,
     border: 0;
     background: transparent;
     color: var(--ink);
+    outline: none;
     transition:
       color 150ms ease,
       opacity 150ms ease;
+  }
+  .site-header-avatar-button:focus-visible {
+    box-shadow: none;
   }
   .site-header-menu-fallback {
     display: flex;

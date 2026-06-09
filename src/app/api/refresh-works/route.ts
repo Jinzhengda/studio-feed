@@ -22,6 +22,72 @@ const IGNORE_TITLES = new Set([
   "works",
 ]);
 
+const SKIP_LINK_PATH_PARTS = [
+  "/archive",
+  "/archives",
+  "/author/",
+  "/category/",
+  "/categories/",
+  "/discipline/",
+  "/disciplines/",
+  "/filter/",
+  "/filters/",
+  "/sector/",
+  "/sectors/",
+  "/tag/",
+  "/tags/",
+];
+
+const MEDIA_ATTRIBUTE_NAMES = [
+  "data-background",
+  "data-bg",
+  "data-desktop-src",
+  "data-image",
+  "data-image-src",
+  "data-lazy-src",
+  "data-mobile-src",
+  "data-original",
+  "data-original-src",
+  "data-poster",
+  "data-src",
+  "data-srcset",
+  "data-video-src",
+  "data-videobackgroundresponsive-desktop",
+  "poster",
+  "src",
+  "srcset",
+];
+
+function isSkippableWorkLink(href: string) {
+  const lowerHref = href.toLowerCase();
+  if (
+    lowerHref.includes("/about") ||
+    lowerHref.includes("/contact") ||
+    lowerHref.includes("/team") ||
+    lowerHref.includes("/news")
+  ) {
+    return true;
+  }
+
+  try {
+    const url = new URL(href, "https://studiofeed.local");
+    const path = url.pathname.toLowerCase();
+    if (
+      url.hostname.includes("moshi-moshi.jp") &&
+      !/^\/(?:en\/)?work\/post_\d+\/?$/.test(path)
+    ) {
+      return true;
+    }
+    return SKIP_LINK_PATH_PARTS.some((part) => path.includes(part));
+  } catch {
+    return SKIP_LINK_PATH_PARTS.some((part) => lowerHref.includes(part));
+  }
+}
+
+function normalizeScrapedTitle(input: string) {
+  return input.replace(/^view\s+/i, "").replace(/\s+/g, " ").trim();
+}
+
 function normalizeUrl(input: string) {
   try {
     const url = new URL(input);
@@ -90,6 +156,10 @@ function normalizeMediaUrl(base: string, input: string) {
 function isUsableMediaUrl(input: string | null | undefined) {
   if (!input) return false;
   if (input.startsWith("data:image")) return false;
+  if (input.includes("weareink.co.uk/assets/img/share-square.png")) return false;
+  if (input.includes("moshi-moshi.jp/cms/wp-content/uploads/2020/09/og-image.jpg")) {
+    return false;
+  }
   if (input.includes("A17_social.png")) return false;
   if (input.includes("pentagram_social.png")) return false;
   if (input.includes("37df6095d115ceb716614cbdf051878398d4bd2a-640x640.jpg")) {
@@ -136,6 +206,19 @@ function mediaFromStyle(base: string, style: string | null | undefined) {
   return firstUsableMediaUrl(base, matches.map((match) => match[1]));
 }
 
+function addMediaAttributeCandidates(
+  candidates: string[],
+  $el: CheerioSelection
+) {
+  for (const attr of MEDIA_ATTRIBUTE_NAMES) {
+    const value = $el.attr(attr) || "";
+    if (!value) continue;
+    candidates.push(
+      attr.includes("srcset") ? getBestSrcFromSrcset(value) : value
+    );
+  }
+}
+
 function extractMediaFromSelection(
   $: CheerioRoot,
   base: string,
@@ -146,41 +229,24 @@ function extractMediaFromSelection(
   const videoCandidates: string[] = [];
   select("video").each((_, el) => {
     const $el = $(el);
-    videoCandidates.push(
-      $el.attr("data-videobackgroundresponsive-desktop") || "",
-      $el.attr("data-video-src") || "",
-      $el.attr("data-src") || "",
-      $el.attr("src") || "",
-      $el.attr("poster") || ""
-    );
+    addMediaAttributeCandidates(videoCandidates, $el);
   });
   select("video source").each((_, el) => {
     const $el = $(el);
-    videoCandidates.push($el.attr("src") || "", $el.attr("data-src") || "");
+    addMediaAttributeCandidates(videoCandidates, $el);
   });
   const video = firstUsableMediaUrl(base, videoCandidates);
   if (video) return video;
 
   const imageCandidates: string[] = [];
   select("source").each((_, el) => {
-    const $el = $(el);
-    imageCandidates.push(
-      getBestSrcFromSrcset($el.attr("srcset") || ""),
-      getBestSrcFromSrcset($el.attr("data-srcset") || ""),
-      $el.attr("data-src") || "",
-      $el.attr("src") || ""
-    );
+    addMediaAttributeCandidates(imageCandidates, $(el));
   });
   select("img").each((_, el) => {
-    const $el = $(el);
-    imageCandidates.push(
-      getBestSrcFromSrcset($el.attr("srcset") || ""),
-      getBestSrcFromSrcset($el.attr("data-srcset") || ""),
-      $el.attr("data-src") || "",
-      $el.attr("data-lazy") || "",
-      $el.attr("data-original") || "",
-      $el.attr("src") || ""
-    );
+    addMediaAttributeCandidates(imageCandidates, $(el));
+  });
+  select("[data-background], [data-bg], [data-image], [data-image-src], [data-lazy-src], [data-poster]").each((_, el) => {
+    addMediaAttributeCandidates(imageCandidates, $(el));
   });
   select("[bg-set]").each((_, el) => {
     const bgSet = $(el).attr("bg-set") || "";
@@ -306,6 +372,26 @@ function normalizeDate(input: string | null | undefined) {
   const d = new Date(input);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+function extractDateFromMediaUrl(input: string | null | undefined) {
+  if (!input) return null;
+
+  try {
+    const url = new URL(input);
+    const version = Number(url.searchParams.get("v") || "");
+    if (!version) return null;
+
+    const date = new Date(version * 1000);
+    const min = new Date("2018-01-01T00:00:00.000Z").getTime();
+    const max = Date.now() + 1000 * 60 * 60 * 24 * 90;
+    const time = date.getTime();
+    if (Number.isNaN(time) || time < min || time > max) return null;
+
+    return date.toISOString();
+  } catch {
+    return null;
+  }
 }
 
 function findDateInJsonLd(node: unknown): string | null {
@@ -675,11 +761,8 @@ async function scrapeGeneric(url: string): Promise<ScrapedWork[]> {
 
       if (!href || href === "#" || href === "/" || href.startsWith("mailto:") || href.startsWith("tel:")) return;
 
-      // 跳过导航链接
-      const lowerHref = href.toLowerCase();
-      if (lowerHref.includes("/about") || lowerHref.includes("/contact") ||
-          lowerHref.includes("/team") || lowerHref.includes("/news") ||
-          lowerHref.includes("/archive")) return;
+      // 跳过导航、筛选、分类链接，避免把 taxonomy 页面当成作品卡片。
+      if (isSkippableWorkLink(href)) return;
 
       const fullUrl = toAbsolute(url, href);
       const normalized = normalizeUrl(fullUrl);
@@ -713,6 +796,8 @@ async function scrapeGeneric(url: string): Promise<ScrapedWork[]> {
         const slug = href.split("/").filter(Boolean).pop() || "";
         title = slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim();
       }
+
+      title = normalizeScrapedTitle(title);
 
       if (!title || title.length < 2 || title.length > 200) return;
       if (IGNORE_TITLES.has(title.toLowerCase())) return;
@@ -942,7 +1027,15 @@ async function scrapeCargoPageImages(
 }
 
 async function scrapeGenericWithFallback(url: string): Promise<ScrapedWork[]> {
-  const origin = new URL(url).origin;
+  const parsedUrl = new URL(url);
+  const origin = parsedUrl.origin;
+  const pathPrefix = parsedUrl.pathname
+    .replace(/\/+$/, "")
+    .split("/")
+    .filter(Boolean)
+    .slice(0, 1)
+    .join("/");
+  const localizedPrefix = pathPrefix ? `/${pathPrefix}` : "";
   const candidatePaths = [
     "",
     "/work",
@@ -953,9 +1046,20 @@ async function scrapeGenericWithFallback(url: string): Promise<ScrapedWork[]> {
     "/clients",
     "/our-work",
   ];
+  const localizedCandidatePaths = localizedPrefix
+    ? candidatePaths
+        .filter(Boolean)
+        .map((path) => `${localizedPrefix}${path}`)
+    : [];
 
   const candidates = Array.from(
-    new Set(candidatePaths.map((path) => (path ? toAbsolute(origin, path) : url)))
+    new Set(
+      [
+        url,
+        ...localizedCandidatePaths.map((path) => toAbsolute(origin, path)),
+        ...candidatePaths.map((path) => (path ? toAbsolute(origin, path) : url)),
+      ]
+    )
   );
 
   const merged = new Map<string, ScrapedWork>();
@@ -1327,14 +1431,16 @@ async function scrapeByUrl(url: string): Promise<ScrapedWork[]> {
 
 async function processStudio(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  studio: { id: string; name: string; feed_url: string | null },
+  studio: { id: string; name: string; feed_url: string | null; is_active?: boolean | null },
   now: string
 ) {
   if (!studio.feed_url) {
     return {
-      debug: { studio: studio.name, scraped: 0, existing: 0, matched: 0, updated: 0, inserted: 0 },
+      debug: { studio: studio.name, scraped: 0, existing: 0, matched: 0, updated: 0, inserted: 0, hidden: 0 },
       rows: [],
       thumbnailUpdates: [],
+      visibilityUpdates: [],
+      dateUpdates: [],
     };
   }
 
@@ -1345,10 +1451,16 @@ async function processStudio(
     scraped = [];
   }
 
-  const studioDebug = { studio: studio.name, scraped: scraped.length, existing: 0, matched: 0, updated: 0, inserted: 0 };
+  const studioDebug = { studio: studio.name, scraped: scraped.length, existing: 0, matched: 0, updated: 0, inserted: 0, hidden: 0 };
 
   if (scraped.length === 0) {
-    return { debug: studioDebug, rows: [], thumbnailUpdates: [] };
+    return {
+      debug: studioDebug,
+      rows: [],
+      thumbnailUpdates: [],
+      visibilityUpdates: [],
+      dateUpdates: [],
+    };
   }
 
   const uniqueScraped = new Map<string, ScrapedWork>();
@@ -1360,7 +1472,7 @@ async function processStudio(
 
   const { data: existing } = await supabase
     .from("works")
-    .select("id,work_url,thumbnail_url")
+    .select("id,work_url,thumbnail_url,published_at,first_seen_at,is_visible")
     .eq("studio_id", studio.id);
 
   studioDebug.existing = existing?.length ?? 0;
@@ -1379,13 +1491,49 @@ async function processStudio(
     is_visible: boolean;
   }> = [];
   const thumbnailUpdates: Array<{ id: string; thumbnail_url: string }> = [];
+  const visibilityUpdates: Array<{ id: string; is_visible: boolean }> = [];
+  const dateUpdates: Array<{
+    id: string;
+    published_at?: string;
+    first_seen_at?: string;
+  }> = [];
+
+  for (const work of existing || []) {
+    const shouldHide = isSkippableWorkLink(work.work_url || "");
+    if (shouldHide && work.is_visible !== false) {
+      visibilityUpdates.push({ id: work.id, is_visible: false });
+      studioDebug.hidden++;
+    }
+  }
 
   for (const item of scraped) {
     const normalized = normalizeUrl(item.workUrl).toLowerCase();
     const existingWork = existingMap.get(normalized);
+    const pagePublished =
+      normalizeDate(item.publishedAt || null) ||
+      (await extractPublishedAt(item.workUrl));
+    const mediaPublished = extractDateFromMediaUrl(item.thumbnailUrl);
+    const published = pagePublished || mediaPublished;
 
     if (existingWork) {
       studioDebug.matched++;
+      if (published) {
+        const existingPublished = normalizeDate(existingWork.published_at || null);
+        const existingFirstSeen = normalizeDate(existingWork.first_seen_at || null);
+        const shouldMoveFirstSeen =
+          Boolean(pagePublished) &&
+          (!existingFirstSeen ||
+            new Date(existingFirstSeen).getTime() > new Date(published).getTime());
+
+        if (existingPublished !== published || shouldMoveFirstSeen) {
+          dateUpdates.push({
+            id: existingWork.id,
+            published_at: published,
+            first_seen_at: shouldMoveFirstSeen ? published : undefined,
+          });
+        }
+      }
+
       const currentThumb = existingWork.thumbnail_url || "";
       const scrapedThumb =
         isUsableMediaUrl(item.thumbnailUrl)
@@ -1414,22 +1562,19 @@ async function processStudio(
       scrapedThumb ||
       (isUsableMediaUrl(ogImage) ? ogImage : null) ||
       placeholderImage(item.workUrl);
-    const published =
-      normalizeDate(item.publishedAt || null) ||
-      (await extractPublishedAt(item.workUrl));
     rows.push({
       studio_id: studio.id,
       title: item.title,
       thumbnail_url: thumb,
       work_url: normalizeUrl(item.workUrl),
       published_at: published || null,
-      first_seen_at: now,
-      is_visible: true,
+      first_seen_at: pagePublished || now,
+      is_visible: studio.is_active !== false,
     });
     studioDebug.inserted++;
   }
 
-  return { debug: studioDebug, rows, thumbnailUpdates };
+  return { debug: studioDebug, rows, thumbnailUpdates, visibilityUpdates, dateUpdates };
 }
 
 export async function POST() {
@@ -1442,8 +1587,7 @@ export async function POST() {
 
   const { data: studios, error } = await supabase
     .from("studios")
-    .select("id,name,feed_url")
-    .eq("is_active", true);
+    .select("id,name,feed_url,is_active");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -1462,6 +1606,8 @@ export async function POST() {
 
   const allRows = results.flatMap((r) => r.rows);
   const allThumbnailUpdates = results.flatMap((r) => r.thumbnailUpdates);
+  const allVisibilityUpdates = results.flatMap((r) => r.visibilityUpdates);
+  const allDateUpdates = results.flatMap((r) => r.dateUpdates);
   const debugLog = results.map((r) => r.debug);
 
   if (allRows.length > 0) {
@@ -1486,5 +1632,39 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ inserted: allRows.length, updated: allThumbnailUpdates.length, debug: debugLog });
+  if (allVisibilityUpdates.length > 0) {
+    for (const update of allVisibilityUpdates) {
+      const { error: updateError } = await supabase
+        .from("works")
+        .update({ is_visible: update.is_visible })
+        .eq("id", update.id);
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+    }
+  }
+
+  if (allDateUpdates.length > 0) {
+    for (const update of allDateUpdates) {
+      const payload: { published_at?: string; first_seen_at?: string } = {};
+      if (update.published_at) payload.published_at = update.published_at;
+      if (update.first_seen_at) payload.first_seen_at = update.first_seen_at;
+
+      const { error: updateError } = await supabase
+        .from("works")
+        .update(payload)
+        .eq("id", update.id);
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+    }
+  }
+
+  return NextResponse.json({
+    inserted: allRows.length,
+    updated: allThumbnailUpdates.length,
+    hidden: allVisibilityUpdates.length,
+    dateUpdated: allDateUpdates.length,
+    debug: debugLog,
+  });
 }
