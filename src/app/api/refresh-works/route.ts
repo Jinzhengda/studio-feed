@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { load } from "cheerio";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 
 type ScrapedWork = {
   title: string;
@@ -57,6 +61,91 @@ const MEDIA_ATTRIBUTE_NAMES = [
   "src",
   "srcset",
 ];
+
+const EXTERNAL_FETCH_TIMEOUT_MS = 10_000;
+const STUDIO_REFRESH_CONCURRENCY = 5;
+const DATABASE_UPDATE_CONCURRENCY = 10;
+
+function isPrivateAddress(address: string) {
+  if (isIP(address) === 4) {
+    const [a, b] = address.split(".").map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    );
+  }
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80:")
+  );
+}
+
+async function assertPublicTarget(input: string) {
+  const url = new URL(input);
+  if (!["http:", "https:"].includes(url.protocol)) throw new Error("Unsupported protocol");
+  const hostname = url.hostname.toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".local") ||
+    hostname.endsWith(".internal")
+  ) {
+    throw new Error("Private network target blocked");
+  }
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new Error("Private network target blocked");
+  }
+}
+
+async function safeFetch(input: string, init: RequestInit = {}) {
+  let current = input;
+  for (let redirects = 0; redirects <= 5; redirects++) {
+    await assertPublicTarget(current);
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(new Error("External request timed out")),
+      EXTERNAL_FETCH_TIMEOUT_MS
+    );
+    const abortFromCaller = () => controller.abort(init.signal?.reason);
+    init.signal?.addEventListener("abort", abortFromCaller, { once: true });
+
+    let response: Response;
+    try {
+      response = await fetch(current, {
+        ...init,
+        redirect: "manual",
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+      init.signal?.removeEventListener("abort", abortFromCaller);
+    }
+
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const location = response.headers.get("location");
+    if (!location) return response;
+    current = new URL(location, current).toString();
+  }
+  throw new Error("Too many redirects");
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+) {
+  for (let index = 0; index < items.length; index += concurrency) {
+    await Promise.all(items.slice(index, index + concurrency).map(worker));
+  }
+}
 
 function isSkippableWorkLink(href: string) {
   const lowerHref = href.toLowerCase();
@@ -356,7 +445,7 @@ function appendSyntheticItem(url: string, itemId: string | number) {
 }
 
 async function fetchHtml(url: string) {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
@@ -989,7 +1078,7 @@ async function scrapeCargoPageImages(
   if (!pageId) return [];
 
   const origin = new URL(url).origin;
-  const res = await fetch(`${origin}/_api/v0/page/${pageId}`, {
+  const res = await safeFetch(`${origin}/_api/v0/page/${pageId}`, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -1274,7 +1363,7 @@ async function scrapeKIGI(): Promise<ScrapedWork[]> {
   const items: ScrapedWork[] = [];
 
   try {
-    const res = await fetch(apiUrl, {
+    const res = await safeFetch(apiUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -1430,7 +1519,7 @@ async function scrapeByUrl(url: string): Promise<ScrapedWork[]> {
 }
 
 async function processStudio(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   studio: { id: string; name: string; feed_url: string | null; is_active?: boolean | null },
   now: string
 ) {
@@ -1509,9 +1598,13 @@ async function processStudio(
   for (const item of scraped) {
     const normalized = normalizeUrl(item.workUrl).toLowerCase();
     const existingWork = existingMap.get(normalized);
+    const suppliedPublished = normalizeDate(item.publishedAt || null);
+    const shouldFetchPublishedAt =
+      !suppliedPublished &&
+      (!existingWork || !normalizeDate(existingWork.published_at || null));
     const pagePublished =
-      normalizeDate(item.publishedAt || null) ||
-      (await extractPublishedAt(item.workUrl));
+      suppliedPublished ||
+      (shouldFetchPublishedAt ? await extractPublishedAt(item.workUrl) : null);
     const mediaPublished = extractDateFromMediaUrl(item.thumbnailUrl);
     const published = pagePublished || mediaPublished;
 
@@ -1577,32 +1670,50 @@ async function processStudio(
   return { debug: studioDebug, rows, thumbnailUpdates, visibilityUpdates, dateUpdates };
 }
 
-export async function POST() {
-  const supabase = await createClient();
-
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { data: studios, error } = await supabase
-    .from("studios")
-    .select("id,name,feed_url,is_active");
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (!studios || studios.length === 0) {
-    return NextResponse.json({ inserted: 0 });
-  }
-
+async function refreshStudios(
+  supabase: SupabaseClient,
+  studios: Array<{ id: string; name: string; feed_url: string | null; is_active?: boolean | null }>
+) {
   const now = new Date().toISOString();
-
-  // 并行处理所有工作室，提升性能
-  const results = await Promise.all(
-    studios.map((studio) => processStudio(supabase, studio, now))
-  );
+  const results = [];
+  const concurrency = STUDIO_REFRESH_CONCURRENCY;
+  for (let index = 0; index < studios.length; index += concurrency) {
+    const batch = studios.slice(index, index + concurrency);
+    const batchResults = await Promise.all(
+      batch.map(async (studio) => {
+        await supabase
+          .from("studios")
+          .update({ refresh_started_at: now, refresh_error: null })
+          .eq("id", studio.id);
+        try {
+          const result = await processStudio(supabase, studio, now);
+          await supabase
+            .from("studios")
+            .update({
+              last_refreshed_at: new Date().toISOString(),
+              refresh_started_at: null,
+              refresh_error: null,
+            })
+            .eq("id", studio.id);
+          return result;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "抓取失败";
+          await supabase
+            .from("studios")
+            .update({ refresh_started_at: null, refresh_error: message.slice(0, 500) })
+            .eq("id", studio.id);
+          return {
+            debug: { studio: studio.name, error: message, scraped: 0, existing: 0, matched: 0, updated: 0, inserted: 0, hidden: 0 },
+            rows: [],
+            thumbnailUpdates: [],
+            visibilityUpdates: [],
+            dateUpdates: [],
+          };
+        }
+      })
+    );
+    results.push(...batchResults);
+  }
 
   const allRows = results.flatMap((r) => r.rows);
   const allThumbnailUpdates = results.flatMap((r) => r.thumbnailUpdates);
@@ -1621,42 +1732,66 @@ export async function POST() {
   }
 
   if (allThumbnailUpdates.length > 0) {
-    for (const update of allThumbnailUpdates) {
-      const { error: updateError } = await supabase
-        .from("works")
-        .update({ thumbnail_url: update.thumbnail_url })
-        .eq("id", update.id);
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+    let updateErrorMessage = "";
+    await runWithConcurrency(
+      allThumbnailUpdates,
+      DATABASE_UPDATE_CONCURRENCY,
+      async (update) => {
+        const { error: updateError } = await supabase
+          .from("works")
+          .update({ thumbnail_url: update.thumbnail_url })
+          .eq("id", update.id);
+        if (updateError && !updateErrorMessage) {
+          updateErrorMessage = updateError.message;
+        }
       }
+    );
+    if (updateErrorMessage) {
+      return NextResponse.json({ error: updateErrorMessage }, { status: 500 });
     }
   }
 
   if (allVisibilityUpdates.length > 0) {
-    for (const update of allVisibilityUpdates) {
-      const { error: updateError } = await supabase
-        .from("works")
-        .update({ is_visible: update.is_visible })
-        .eq("id", update.id);
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+    let updateErrorMessage = "";
+    await runWithConcurrency(
+      allVisibilityUpdates,
+      DATABASE_UPDATE_CONCURRENCY,
+      async (update) => {
+        const { error: updateError } = await supabase
+          .from("works")
+          .update({ is_visible: update.is_visible })
+          .eq("id", update.id);
+        if (updateError && !updateErrorMessage) {
+          updateErrorMessage = updateError.message;
+        }
       }
+    );
+    if (updateErrorMessage) {
+      return NextResponse.json({ error: updateErrorMessage }, { status: 500 });
     }
   }
 
   if (allDateUpdates.length > 0) {
-    for (const update of allDateUpdates) {
-      const payload: { published_at?: string; first_seen_at?: string } = {};
-      if (update.published_at) payload.published_at = update.published_at;
-      if (update.first_seen_at) payload.first_seen_at = update.first_seen_at;
+    let updateErrorMessage = "";
+    await runWithConcurrency(
+      allDateUpdates,
+      DATABASE_UPDATE_CONCURRENCY,
+      async (update) => {
+        const payload: { published_at?: string; first_seen_at?: string } = {};
+        if (update.published_at) payload.published_at = update.published_at;
+        if (update.first_seen_at) payload.first_seen_at = update.first_seen_at;
 
-      const { error: updateError } = await supabase
-        .from("works")
-        .update(payload)
-        .eq("id", update.id);
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+        const { error: updateError } = await supabase
+          .from("works")
+          .update(payload)
+          .eq("id", update.id);
+        if (updateError && !updateErrorMessage) {
+          updateErrorMessage = updateError.message;
+        }
       }
+    );
+    if (updateErrorMessage) {
+      return NextResponse.json({ error: updateErrorMessage }, { status: 500 });
     }
   }
 
@@ -1667,4 +1802,66 @@ export async function POST() {
     dateUpdated: allDateUpdates.length,
     debug: debugLog,
   });
+}
+
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: claimed, error: claimError } = await supabase.rpc("claim_manual_refresh");
+  if (claimError) {
+    return NextResponse.json({ error: claimError.message }, { status: 500 });
+  }
+  if (!claimed) {
+    return NextResponse.json(
+      { error: "刷新过于频繁，请在 10 分钟后重试" },
+      { status: 429 }
+    );
+  }
+
+  let studioId: string | null = null;
+  try {
+    const body = await request.json();
+    studioId = typeof body?.studioId === "string" ? body.studioId : null;
+  } catch {
+    // Empty body means refresh every active studio owned by the current user.
+  }
+
+  let query = supabase
+    .from("studios")
+    .select("id,name,feed_url,is_active")
+    .eq("owner_id", data.user.id)
+    .eq("is_active", true);
+  if (studioId) query = query.eq("id", studioId);
+
+  const { data: studios, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!studios?.length) return NextResponse.json({ inserted: 0, updated: 0, debug: [] });
+
+  return refreshStudios(supabase, studios);
+}
+
+export async function GET(request: Request) {
+  const authorization = request.headers.get("authorization");
+  const secret = process.env.CRON_SECRET;
+  if (!secret || authorization !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const supabase = createAdminClient();
+  const dueBefore = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
+  const { data: studios, error } = await supabase
+    .from("studios")
+    .select("id,name,feed_url,is_active")
+    .eq("is_active", true)
+    .or(`last_refreshed_at.is.null,last_refreshed_at.lt.${dueBefore}`)
+    .order("last_refreshed_at", { ascending: true, nullsFirst: true })
+    .limit(50);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!studios?.length) return NextResponse.json({ inserted: 0, updated: 0, debug: [] });
+  return refreshStudios(supabase, studios);
 }

@@ -39,7 +39,16 @@ export default function HeaderUserMenu() {
           .single();
 
         if (!isMounted) return;
-        setAvatarUrl(profile?.avatar_url || null);
+        if (profile?.avatar_url?.startsWith("http")) {
+          setAvatarUrl(profile.avatar_url);
+        } else if (profile?.avatar_url) {
+          const { data } = await supabase.storage
+            .from("public2")
+            .createSignedUrl(profile.avatar_url, 3600);
+          setAvatarUrl(data?.signedUrl || null);
+        } else {
+          setAvatarUrl(null);
+        }
         setLoading(false);
       } catch {
         if (!isMounted) return;

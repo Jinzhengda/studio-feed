@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import InputField from "@/components/InputField";
+import Button from "@/components/Button";
 import { createClient } from "@/lib/supabase/client";
 import { shouldDisplayWork } from "@/lib/work-rules";
 
@@ -27,9 +29,16 @@ export default function WorksAdminPage() {
 
   async function loadWorks() {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setWorks([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("works")
-      .select("id,title,thumbnail_url,work_url,published_at,is_visible,studios(name)")
+      .select("id,title,thumbnail_url,work_url,published_at,is_visible,studios!inner(name,owner_id)")
+      .eq("studios.owner_id", user.id)
       .order("published_at", { ascending: false, nullsFirst: false });
 
     if (error) {
@@ -112,9 +121,9 @@ export default function WorksAdminPage() {
             共 {displayWorks.length} 条，{visibleCount} 条可见，{hiddenCount} 条隐藏
           </p>
         </div>
-        <button type="button" className="btn rounded-none" onClick={loadWorks} disabled={loading}>
-          {loading ? "刷新中..." : "刷新列表"}
-        </button>
+        <Button type="button" variant="secondary" onClick={loadWorks} loading={loading}>
+          {loading ? "刷新中" : "刷新列表"}
+        </Button>
       </div>
 
       {message && <p className="mt-4 text-sm text-[var(--muted)]">{message}</p>}
@@ -135,8 +144,10 @@ export default function WorksAdminPage() {
       </div>
 
       <div className="admin-filter-bar mt-6">
-        <input
-          className="admin-search-input"
+        <InputField
+          inputType="search"
+          containerClassName="w-full max-w-96 shrink-0"
+          aria-label="搜索作品"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索标题、工作室或链接"
@@ -189,20 +200,20 @@ export default function WorksAdminPage() {
                     : "未设置日期"}
                 </span>
                 <div className="flex gap-3">
-                  <button
-                    className="btn-text"
+                  <Button
+                    variant="ghost"
                     onClick={() => toggleVisible(work)}
-                    disabled={activeWorkId === work.id}
+                    loading={activeWorkId === work.id}
                   >
-                    {activeWorkId === work.id ? "处理中..." : "切换可见性"}
-                  </button>
-                  <button
-                    className="btn-text"
+                    {activeWorkId === work.id ? "处理中" : "切换可见性"}
+                  </Button>
+                  <Button
+                    variant="danger"
                     onClick={() => handleDelete(work.id)}
                     disabled={activeWorkId === work.id}
                   >
                     删除
-                  </button>
+                  </Button>
                 </div>
               </div>
             </article>
@@ -251,20 +262,20 @@ export default function WorksAdminPage() {
               </td>
               <td className="border-b border-[var(--stroke)] py-3">
                 <div className="flex gap-2">
-                  <button
-                    className="btn-text"
+                  <Button
+                    variant="ghost"
                     onClick={() => toggleVisible(work)}
-                    disabled={activeWorkId === work.id}
+                    loading={activeWorkId === work.id}
                   >
-                    {activeWorkId === work.id ? "处理中..." : "切换可见性"}
-                  </button>
-                  <button
-                    className="btn-text"
+                    {activeWorkId === work.id ? "处理中" : "切换可见性"}
+                  </Button>
+                  <Button
+                    variant="danger"
                     onClick={() => handleDelete(work.id)}
                     disabled={activeWorkId === work.id}
                   >
                     删除
-                  </button>
+                  </Button>
                 </div>
               </td>
             </tr>

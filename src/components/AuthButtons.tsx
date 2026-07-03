@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Button, { ButtonLink } from "@/components/Button";
 
 export default function AuthButtons({ isAuthed }: { isAuthed: boolean }) {
   const router = useRouter();
@@ -15,23 +15,23 @@ export default function AuthButtons({ isAuthed }: { isAuthed: boolean }) {
 
   if (!isAuthed) {
     return (
-      <Link href="/login" className="btn">
+      <ButtonLink href="/login" variant="secondary">
         登录
-      </Link>
+      </ButtonLink>
     );
   }
 
   return (
     <div className="flex items-center gap-3">
-      <Link href="/admin/studios" className="btn">
+      <ButtonLink href="/admin/studios" variant="secondary">
         Admin
-      </Link>
-      <button
+      </ButtonLink>
+      <Button
         onClick={handleLogout}
-        className="btn"
+        variant="danger"
       >
         登出
-      </button>
+      </Button>
     </div>
   );
 }

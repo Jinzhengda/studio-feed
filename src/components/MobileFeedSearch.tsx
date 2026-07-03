@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import InputField from "@/components/InputField";
 import { createClient } from "@/lib/supabase/client";
 
 export default function MobileFeedSearch() {
@@ -58,8 +59,9 @@ export default function MobileFeedSearch() {
 
   return (
     <div className="order-3 mt-3 w-full md:order-none md:mt-0 md:w-[240px]">
-      <input
-        className="h-9 w-full rounded-none border border-[var(--stroke)] bg-[var(--card)] px-3 text-sm outline-none transition-colors focus:border-black focus:ring-0 dark:focus:border-white"
+      <InputField
+        inputType="search"
+        aria-label="搜索作品或工作室"
         value={searchParams.get("q") || ""}
         onChange={(event) => updateQuery(event.target.value)}
         placeholder="搜索作品或工作室"

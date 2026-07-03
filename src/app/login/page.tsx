@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import FloatingHeroGallery from "@/components/FloatingHeroGallery";
+import InputField from "@/components/InputField";
+import Button from "@/components/Button";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 const loginGalleryItems = Array.from({ length: 12 }, (_, index) => ({
   id: `login-gallery-${index}`,
@@ -21,7 +24,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [emailEditable, setEmailEditable] = useState(false);
   const [passwordEditable, setPasswordEditable] = useState(false);
 
@@ -71,92 +73,53 @@ export default function LoginPage() {
             className="mt-8 space-y-4"
             autoComplete="off"
           >
-            <div>
-              <label className="text-sm">邮箱</label>
-              <input
-                ref={emailRef}
-                type="email"
-                name="studio-feed-email"
-                autoComplete="off"
-                readOnly={!emailEditable}
-                className="mt-2 h-10 w-full rounded-none border border-[var(--stroke)] px-4 outline-none transition-colors focus:border-black focus:ring-1 focus:ring-black dark:focus:border-white dark:focus:ring-white"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onFocus={() => setEmailEditable(true)}
-                placeholder="请输入邮箱地址"
-                required
-              />
-            </div>
+            <InputField
+              ref={emailRef}
+              label="邮箱"
+              type="email"
+              name="studio-feed-email"
+              autoComplete="off"
+              readOnly={!emailEditable}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => setEmailEditable(true)}
+              placeholder="请输入邮箱地址"
+              required
+            />
 
-            <div>
-              <label className="text-sm">密码</label>
-              <div className="relative mt-2">
-                <input
-                  ref={passwordRef}
-                  type={showPassword ? "text" : "password"}
-                  name="studio-feed-passcode"
-                  autoComplete="new-password"
-                  readOnly={!passwordEditable}
-                  className="h-10 w-full rounded-none border border-[var(--stroke)] px-4 pr-11 outline-none transition-colors focus:border-black focus:ring-1 focus:ring-black dark:focus:border-white dark:focus:ring-white"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setPasswordEditable(true)}
-                  placeholder=""
-                  required
-                />
-                {password && (
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
-                    onClick={() => setShowPassword((value) => !value)}
-                    aria-label={showPassword ? "隐藏密码" : "显示密码"}
-                  >
-                    {showPassword ? (
-                      <svg
-                        aria-hidden="true"
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.8"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="m3 3 18 18" />
-                        <path d="M10.58 10.58a2 2 0 0 0 2.83 2.83" />
-                        <path d="M9.88 4.24A9.85 9.85 0 0 1 12 4c5 0 9 5 9 8a8.2 8.2 0 0 1-1.65 3.92" />
-                        <path d="M6.61 6.61C4.42 8.1 3 10.25 3 12c0 3 4 8 9 8 1.37 0 2.66-.38 3.82-1.01" />
-                      </svg>
-                    ) : (
-                      <svg
-                        aria-hidden="true"
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.8"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M2.06 12.35a1 1 0 0 1 0-.7C3.1 8.85 7.05 4 12 4s8.9 4.85 9.94 7.65a1 1 0 0 1 0 .7C20.9 15.15 16.95 20 12 20s-8.9-4.85-9.94-7.65Z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
+            <InputField
+              ref={passwordRef}
+              label="密码"
+              inputType="password"
+              name="studio-feed-passcode"
+              autoComplete="new-password"
+              readOnly={!passwordEditable}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordEditable(true)}
+              placeholder="请输入密码"
+              required
+            />
 
             {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="btn-primary mt-8 h-10 w-full rounded-none"
+              loading={loading}
+              fullWidth
+              className="mt-8"
             >
-              {loading ? "登录中..." : "登录"}
-            </button>
+              {loading ? "登录中" : "登录"}
+            </Button>
           </form>
+          <div className="mt-6 flex justify-between text-sm">
+            <Link href="/forgot-password" className="text-[var(--muted)] underline">
+              忘记密码
+            </Link>
+            <Link href="/signup" className="underline">
+              创建账号
+            </Link>
+          </div>
         </div>
       </div>
 

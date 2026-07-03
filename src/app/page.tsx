@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import MasonryGrid from "@/components/MasonryGrid";
+import { ButtonLink } from "@/components/Button";
 import Link from "next/link";
 import FloatingHeroGallery from "@/components/FloatingHeroGallery";
 import {
@@ -30,7 +31,10 @@ type WorkRow = {
   published_at: string | null;
   created_at: string | null;
   first_seen_at: string | null;
-  studios: { name: string | null; cover_url: string | null } | { name: string | null; cover_url: string | null }[] | null;
+  studios:
+    | { name: string | null; cover_url: string | null; owner_id?: string | null }
+    | { name: string | null; cover_url: string | null; owner_id?: string | null }[]
+    | null;
 };
 
 const demoSizes = [
@@ -122,44 +126,9 @@ export default async function HomePage() {
   const { data: userData } = await supabase.auth.getUser();
 
   if (!userData.user) {
-    const [{ data: heroPublished }, { data: heroRecent }] = await Promise.all([
-      supabase
-        .from("works")
-        .select("id,title,thumbnail_url,work_url")
-        .eq("is_visible", true)
-        .not("thumbnail_url", "is", null)
-        .order("published_at", { ascending: false, nullsFirst: false })
-        .order("first_seen_at", { ascending: false })
-        .limit(40),
-      supabase
-        .from("works")
-        .select("id,title,thumbnail_url,work_url")
-        .eq("is_visible", true)
-        .not("thumbnail_url", "is", null)
-        .order("first_seen_at", { ascending: false })
-        .limit(40),
-    ]);
-    const heroData = [...(heroPublished || []), ...(heroRecent || [])];
-    const seenHero = new Set<string>();
-    const heroWorks =
-      (heroData as Pick<WorkRow, "id" | "title" | "thumbnail_url" | "work_url">[])
-        .filter((work) => shouldDisplayWork(work))
-        .filter((work) => {
-          const key = work.thumbnail_url || work.id;
-          if (seenHero.has(key)) return false;
-          seenHero.add(key);
-          return true;
-        })
-        .map((work) => ({
-          id: work.id,
-          title: work.title || "Untitled",
-          thumbnail_url: work.thumbnail_url || "",
-        }))
-        .filter((work) => work.thumbnail_url) || demoWorks;
-
     return (
       <section className="home-hero-section relative h-[calc(100vh-49px)] overflow-hidden px-10 py-8">
-        <FloatingHeroGallery items={heroWorks.length ? heroWorks : demoWorks} />
+        <FloatingHeroGallery items={demoWorks} />
         <div className="absolute left-1/2 top-[40%] z-10 flex w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col items-center px-10 text-center">
           <h1 className="max-w-3xl text-5xl font-medium leading-[1.02] sm:text-[56px]">
             你的设计灵感<wbr />
@@ -192,12 +161,13 @@ export default async function HomePage() {
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
   const selectColumns =
-    "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios(name, cover_url)";
+    "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios!inner(name, cover_url, owner_id)";
   const [{ data: publishedData }, { data: recentData }, { data: supplementalData }] = await Promise.all([
     supabase
       .from("works")
       .select(selectColumns)
       .eq("is_visible", true)
+      .eq("studios.owner_id", userData.user.id)
       .not("thumbnail_url", "is", null)
       .gte("first_seen_at", sixMonthsAgo.toISOString())
       .order("published_at", { ascending: false, nullsFirst: false })
@@ -207,6 +177,7 @@ export default async function HomePage() {
       .from("works")
       .select(selectColumns)
       .eq("is_visible", true)
+      .eq("studios.owner_id", userData.user.id)
       .not("thumbnail_url", "is", null)
       .gte("first_seen_at", sixMonthsAgo.toISOString())
       .order("first_seen_at", { ascending: false })
@@ -215,6 +186,7 @@ export default async function HomePage() {
       .from("works")
       .select(selectColumns)
       .eq("is_visible", true)
+      .eq("studios.owner_id", userData.user.id)
       .not("thumbnail_url", "is", null)
       .ilike("work_url", SUPPLEMENTAL_WORK_URL_PATTERN)
       .order("first_seen_at", { ascending: false })
@@ -230,9 +202,23 @@ export default async function HomePage() {
     HOME_PAGE_SIZE
   );
 
+  if (uniqueWorks.length === 0) {
+    return (
+      <section className="mx-auto flex min-h-[65vh] max-w-xl flex-col items-center justify-center px-6 text-center">
+        <h1 className="text-3xl font-semibold">你的作品流还是空的</h1>
+        <p className="mt-4 leading-7 text-[var(--muted)]">
+          添加第一家工作室并刷新后，相关作品会显示在这里。
+        </p>
+        <ButtonLink href="/admin/studios?new=1" className="mt-8">
+          添加工作室
+        </ButtonLink>
+      </section>
+    );
+  }
+
   return (
     <section className="mx-auto max-w-6xl px-6 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
-      <MasonryGrid works={uniqueWorks.length ? uniqueWorks : demoWorks} pageSize={HOME_PAGE_SIZE} />
+      <MasonryGrid works={uniqueWorks} pageSize={HOME_PAGE_SIZE} />
     </section>
   );
 }

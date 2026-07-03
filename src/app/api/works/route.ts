@@ -49,7 +49,7 @@ export async function GET(request: Request) {
     MIN_CANDIDATE_LIMIT
   );
   const selectColumns =
-    "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios(name, cover_url)";
+    "id,title,thumbnail_url,work_url,published_at,created_at,first_seen_at, studios!inner(name, cover_url, owner_id)";
 
   const [
     { data: publishedData, error: publishedError },
@@ -61,6 +61,7 @@ export async function GET(request: Request) {
         .from("works")
         .select(selectColumns)
         .eq("is_visible", true)
+        .eq("studios.owner_id", userData.user.id)
         .not("thumbnail_url", "is", null)
         .gte("first_seen_at", sixMonthsAgo.toISOString())
         .order("published_at", { ascending: false, nullsFirst: false })
@@ -70,6 +71,7 @@ export async function GET(request: Request) {
         .from("works")
         .select(selectColumns)
         .eq("is_visible", true)
+        .eq("studios.owner_id", userData.user.id)
         .not("thumbnail_url", "is", null)
         .gte("first_seen_at", sixMonthsAgo.toISOString())
         .order("first_seen_at", { ascending: false })
@@ -78,6 +80,7 @@ export async function GET(request: Request) {
         .from("works")
         .select(selectColumns)
         .eq("is_visible", true)
+        .eq("studios.owner_id", userData.user.id)
         .not("thumbnail_url", "is", null)
         .ilike("work_url", SUPPLEMENTAL_WORK_URL_PATTERN)
         .order("first_seen_at", { ascending: false })

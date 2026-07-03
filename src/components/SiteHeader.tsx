@@ -10,7 +10,12 @@ import MobileFeedSearch from "@/components/MobileFeedSearch";
 export default function SiteHeader() {
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password"
+  ) {
     return null;
   }
 

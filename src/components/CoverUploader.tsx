@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { buttonClassName } from "@/components/Button";
 
 export default function CoverUploader({
   value,
@@ -20,8 +21,14 @@ export default function CoverUploader({
     setError("");
     setUploading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError("请先登录");
+      setUploading(false);
+      return;
+    }
     const ext = file.name.split(".").pop() || "jpg";
-    const path = `cover_${Date.now()}.${ext}`;
+    const path = `${user.id}/cover_${Date.now()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("studio-covers")
@@ -49,7 +56,7 @@ export default function CoverUploader({
 
   return (
     <div className="mt-2 flex items-center gap-3">
-      <label className="btn cursor-pointer">
+      <label className={buttonClassName({ variant: "secondary", className: "cursor-pointer" })}>
         {uploading ? "上传中..." : "上传封面图"}
         <input
           type="file"
@@ -60,7 +67,12 @@ export default function CoverUploader({
         />
       </label>
       {value && (
-        <a href={value} className="btn-text" target="_blank" rel="noreferrer">
+        <a
+          href={value}
+          className={buttonClassName({ variant: "ghost" })}
+          target="_blank"
+          rel="noreferrer"
+        >
           查看已上传
         </a>
       )}

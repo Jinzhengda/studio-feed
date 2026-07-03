@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import AvatarImage from "@/components/AvatarImage";
+import { buttonClassName } from "@/components/Button";
 
 export default function ProfilePage() {
   const supabase = useMemo(() => createClient(), []);
@@ -29,7 +30,14 @@ export default function ProfilePage() {
       .single();
 
     if (profile?.avatar_url) {
-      setAvatarUrl(profile.avatar_url);
+      if (profile.avatar_url.startsWith("http")) {
+        setAvatarUrl(profile.avatar_url);
+      } else {
+        const { data } = await supabase.storage
+          .from("public2")
+          .createSignedUrl(profile.avatar_url, 3600);
+        setAvatarUrl(data?.signedUrl || "");
+      }
     }
   }, [router, supabase]);
 
@@ -49,7 +57,7 @@ export default function ProfilePage() {
       const file = event.target.files[0];
       const fileExt = file.name.split(".").pop();
       const fileName = `${userId}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = `${userId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("public2")
@@ -59,15 +67,16 @@ export default function ProfilePage() {
         throw uploadError;
       }
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: signedData, error: signedError } = await supabase.storage
         .from("public2")
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 3600);
+      if (signedError) throw signedError;
 
       const { error: updateError } = await supabase
         .from("profiles")
         .upsert({
           id: userId,
-          avatar_url: publicUrl,
+          avatar_url: filePath,
           updated_at: new Date().toISOString(),
         });
 
@@ -75,7 +84,7 @@ export default function ProfilePage() {
         throw updateError;
       }
 
-      setAvatarUrl(publicUrl);
+      setAvatarUrl(signedData.signedUrl);
       setMessage("头像上传成功！");
       setTimeout(() => {
         router.refresh();
@@ -110,7 +119,7 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="btn cursor-pointer rounded-none">
+            <label className={buttonClassName({ variant: "secondary", className: "cursor-pointer" })}>
               {uploading ? "上传中..." : "上传头像"}
               <input
                 type="file"

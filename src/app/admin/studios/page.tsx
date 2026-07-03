@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import CoverUploader from "@/components/CoverUploader";
+import InputField from "@/components/InputField";
+import Button from "@/components/Button";
 import { isUsableWorkThumbnail, shouldDisplayWork } from "@/lib/work-rules";
 
 type Studio = {
@@ -29,6 +32,7 @@ const emptyForm = {
 
 export default function StudiosAdminPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   const [studios, setStudios] = useState<Studio[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
@@ -96,11 +100,22 @@ export default function StudiosAdminPage() {
   async function loadStudios() {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setStudios([]);
+        setLatestWorkThumbByStudioId({});
+        return;
+      }
       const [{ data: studioRows }, { data: workRows }] = await Promise.all([
-        supabase.from("studios").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("studios")
+          .select("*")
+          .eq("owner_id", user.id)
+          .order("created_at", { ascending: false }),
         supabase
           .from("works")
-          .select("studio_id,thumbnail_url,work_url,first_seen_at")
+          .select("studio_id,thumbnail_url,work_url,first_seen_at,studios!inner(owner_id)")
+          .eq("studios.owner_id", user.id)
           .eq("is_visible", true)
           .not("thumbnail_url", "is", null)
           .order("first_seen_at", { ascending: false }),
@@ -125,6 +140,10 @@ export default function StudiosAdminPage() {
     loadStudios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") openCreateForm();
+  }, [searchParams]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredStudios = studios.filter((studio) => {
@@ -189,17 +208,22 @@ export default function StudiosAdminPage() {
 
     try {
       if (form.id) {
-        const { error } = await supabase
-          .from("studios")
-          .update(payload)
-          .eq("id", form.id);
-
-        if (error) throw error;
+        const response = await fetch(`/api/studios/${form.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "更新失败");
         showToast("已更新");
       } else {
-        const { error } = await supabase.from("studios").insert(payload);
-
-        if (error) throw error;
+        const response = await fetch("/api/studios", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "新增失败");
         showToast("已新增");
       }
 
@@ -216,8 +240,9 @@ export default function StudiosAdminPage() {
     setActiveStudioId(id);
 
     try {
-      const { error } = await supabase.from("studios").delete().eq("id", id);
-      if (error) throw error;
+      const response = await fetch(`/api/studios/${id}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "删除失败");
       showToast("已删除");
       await loadStudios();
     } catch (error) {
@@ -234,7 +259,8 @@ export default function StudiosAdminPage() {
       const res = await fetch("/api/refresh-works", { method: "POST" });
       setRefreshing(false);
       if (!res.ok) {
-        showToast("刷新失败（" + res.status + "）");
+        const errorBody = await res.json().catch(() => null);
+        showToast(errorBody?.error || "刷新失败（" + res.status + "）");
         return;
       }
       const result = await res.json();
@@ -289,17 +315,17 @@ export default function StudiosAdminPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button type="button" className="btn rounded-none" onClick={openCreateForm}>
+            <Button type="button" onClick={openCreateForm}>
               新增工作室
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="btn rounded-none"
+              variant="secondary"
               onClick={refreshDemo}
-              disabled={refreshing}
+              loading={refreshing}
             >
-              {refreshing ? "刷新中..." : "刷新数据"}
-            </button>
+              {refreshing ? "刷新中" : "刷新数据"}
+            </Button>
           </div>
         </div>
         {message && !isFormOpen && (
@@ -324,8 +350,10 @@ export default function StudiosAdminPage() {
         </div>
 
         <div className="admin-filter-bar mb-6">
-          <input
-            className="admin-search-input"
+          <InputField
+            inputType="search"
+            containerClassName="w-full max-w-96 shrink-0"
+            aria-label="搜索工作室"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索名称、官网、地区或标签"
@@ -375,16 +403,16 @@ export default function StudiosAdminPage() {
                     <p>{coverStatus(studio).label}</p>
                   </div>
                   <div className="mt-4 flex gap-3">
-                    <button className="btn-text" onClick={() => openEditForm(studio)}>
+                    <Button variant="ghost" onClick={() => openEditForm(studio)}>
                       编辑
-                    </button>
-                    <button
-                      className="btn-text"
+                    </Button>
+                    <Button
+                      variant="danger"
                       onClick={() => handleDelete(studio.id)}
-                      disabled={activeStudioId === studio.id}
+                      loading={activeStudioId === studio.id}
                     >
-                      {activeStudioId === studio.id ? "删除中..." : "删除"}
-                    </button>
+                      {activeStudioId === studio.id ? "删除中" : "删除"}
+                    </Button>
                   </div>
                 </article>
               ))}
@@ -444,19 +472,19 @@ export default function StudiosAdminPage() {
                     </td>
                     <td className="border-b border-[var(--stroke)] py-3">
                       <div className="flex gap-2">
-                        <button
-                          className="btn-text"
+                        <Button
+                          variant="ghost"
                           onClick={() => openEditForm(studio)}
                         >
                           编辑
-                        </button>
-                        <button
-                          className="btn-text"
+                        </Button>
+                        <Button
+                          variant="danger"
                           onClick={() => handleDelete(studio.id)}
-                          disabled={activeStudioId === studio.id}
+                          loading={activeStudioId === studio.id}
                         >
-                          {activeStudioId === studio.id ? "删除中..." : "删除"}
-                        </button>
+                          {activeStudioId === studio.id ? "删除中" : "删除"}
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -481,49 +509,42 @@ export default function StudiosAdminPage() {
               <h2 className="text-lg font-medium">
                 {form.id ? "编辑工作室" : "新增工作室"}
               </h2>
-              <button type="button" className="btn-text" onClick={closeForm}>
+              <Button type="button" variant="ghost" onClick={closeForm}>
                 关闭
-              </button>
+              </Button>
             </div>
 
             <form
               onSubmit={handleSave}
               className="grid grid-cols-1 gap-4 overflow-y-auto pr-2"
             >
-              <div>
-                <label className="text-sm">名称</label>
-                <input
-                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-              </div>
+              <InputField
+                label="名称"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+
+              <InputField
+                label="官网"
+                type="url"
+                value={form.website_url}
+                onChange={(e) =>
+                  setForm({ ...form, website_url: e.target.value })
+                }
+              />
+
+              <InputField
+                label="RSS / 抓取地址"
+                type="url"
+                value={form.feed_url}
+                onChange={(e) => setForm({ ...form, feed_url: e.target.value })}
+              />
 
               <div>
-                <label className="text-sm">官网</label>
-                <input
-                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
-                  value={form.website_url}
-                  onChange={(e) =>
-                    setForm({ ...form, website_url: e.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="text-sm">RSS / 抓取地址</label>
-                <input
-                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
-                  value={form.feed_url}
-                  onChange={(e) => setForm({ ...form, feed_url: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm">兜底封面 URL（仅作品图加载失败时显示）</label>
-                <input
-                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
+                <InputField
+                  label="兜底封面 URL（仅作品图加载失败时显示）"
+                  type="url"
                   value={form.cover_url}
                   onChange={(e) => setForm({ ...form, cover_url: e.target.value })}
                   placeholder="https://example.com/cover.jpg"
@@ -539,23 +560,17 @@ export default function StudiosAdminPage() {
                 )}
               </div>
 
-              <div>
-                <label className="text-sm">位置</label>
-                <input
-                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                />
-              </div>
+              <InputField
+                label="位置"
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+              />
 
-              <div>
-                <label className="text-sm">标签（逗号分隔）</label>
-                <input
-                  className="mt-2 w-full rounded-none border border-[var(--stroke)] px-3 py-2"
-                  value={form.tags}
-                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
-                />
-              </div>
+              <InputField
+                label="标签（逗号分隔）"
+                value={form.tags}
+                onChange={(e) => setForm({ ...form, tags: e.target.value })}
+              />
 
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -569,16 +584,16 @@ export default function StudiosAdminPage() {
               </label>
 
               <div className="flex gap-3 pt-1">
-                <button type="submit" className="btn">
+                <Button type="submit">
                   {form.id ? "保存" : "新增工作室"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn"
+                  variant="secondary"
                   onClick={() => setForm({ ...emptyForm })}
                 >
                   清空表单
-                </button>
+                </Button>
               </div>
 
               {message && (

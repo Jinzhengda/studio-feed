@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AvatarImage from "./AvatarImage";
+import { ButtonLink } from "@/components/Button";
 
 export default function UserMenu({
   isAuthed,
@@ -48,9 +49,9 @@ export default function UserMenu({
 
   if (!isAuthed) {
     return (
-      <Link href="/login" className="btn">
+      <ButtonLink href="/login" variant="secondary">
         登录
-      </Link>
+      </ButtonLink>
     );
   }
 
