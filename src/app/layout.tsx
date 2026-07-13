@@ -1,6 +1,14 @@
 import "./globals.css";
+import { Alice } from "next/font/google";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+
+const alice = Alice({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-alice",
+});
 
 export const metadata = {
   title: "StudioFeed",
@@ -13,7 +21,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh" suppressHydrationWarning>
+    <html lang="zh" className={alice.variable} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

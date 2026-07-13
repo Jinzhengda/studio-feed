@@ -8,11 +8,11 @@ import Button from "@/components/Button";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
-const loginGalleryItems = Array.from({ length: 12 }, (_, index) => ({
-  id: `login-gallery-${index}`,
-  title: `Studio reference ${index + 1}`,
-  thumbnail_url: `https://picsum.photos/seed/studio-feed-login-${index}/720/720`,
-}));
+type LoginGalleryItem = {
+  id: string;
+  title: string;
+  thumbnail_url: string;
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [emailEditable, setEmailEditable] = useState(false);
   const [passwordEditable, setPasswordEditable] = useState(false);
+  const [galleryItems, setGalleryItems] = useState<LoginGalleryItem[]>([]);
 
   useEffect(() => {
     function clearAutofill() {
@@ -37,6 +38,23 @@ export default function LoginPage() {
     const timer = window.setTimeout(clearAutofill, 100);
 
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/login-gallery")
+      .then((response) => (response.ok ? response.json() : { images: [] }))
+      .then((result) => {
+        if (active && Array.isArray(result.images)) setGalleryItems(result.images);
+      })
+      .catch(() => {
+        if (active) setGalleryItems([]);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleLogin(e: React.FormEvent) {
@@ -60,22 +78,21 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="grid min-h-screen lg:grid-cols-2">
-      <div className="flex min-h-[520px] items-center justify-center px-6 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
-        <div className="w-full max-w-[320px]">
-          <h1 className="text-3xl font-semibold">欢迎回来</h1>
-          <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-            登录后继续查看你的工作室作品流。
+    <section className="login-page">
+      <div className="login-form-panel">
+        <div className="login-form-shell">
+          <h1 className="login-title">welcome back</h1>
+          <p className="login-description">
+            登录后继续查看你的工作室作品流
           </p>
 
           <form
             onSubmit={handleLogin}
-            className="mt-8 space-y-4"
+            className="login-form"
             autoComplete="off"
           >
             <InputField
               ref={emailRef}
-              label="邮箱"
               type="email"
               name="studio-feed-email"
               autoComplete="off"
@@ -83,13 +100,12 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onFocus={() => setEmailEditable(true)}
-              placeholder="请输入邮箱地址"
+              placeholder="email"
               required
             />
 
             <InputField
               ref={passwordRef}
-              label="密码"
               inputType="password"
               name="studio-feed-passcode"
               autoComplete="new-password"
@@ -97,7 +113,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setPasswordEditable(true)}
-              placeholder="请输入密码"
+              placeholder="password"
               required
             />
 
@@ -107,25 +123,21 @@ export default function LoginPage() {
               type="submit"
               loading={loading}
               fullWidth
-              className="mt-8"
+              className="login-submit"
             >
               {loading ? "登录中" : "登录"}
             </Button>
           </form>
-          <div className="mt-6 flex justify-between text-sm">
-            <Link href="/forgot-password" className="text-[var(--muted)] underline">
+          <div className="login-secondary-action">
+            <Link href="/forgot-password">
               忘记密码
-            </Link>
-            <Link href="/signup" className="underline">
-              创建账号
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="login-visual-panel relative hidden min-h-screen overflow-hidden lg:block">
-        <FloatingHeroGallery items={loginGalleryItems} />
-        <div className="login-visual-vignette" aria-hidden="true" />
+      <div className="login-visual-panel">
+        {galleryItems.length > 0 && <FloatingHeroGallery items={galleryItems} />}
       </div>
     </section>
   );

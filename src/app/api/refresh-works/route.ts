@@ -1202,6 +1202,7 @@ async function scrapePentagram(url: string): Promise<ScrapedWork[]> {
   const html = await fetchHtml(url);
   const $ = load(html);
   const items: ScrapedWork[] = [];
+  const seen = new Set<string>();
 
   $('[data-behavior="projectCard"]').each((_, el) => {
     const $card = $(el);
@@ -1212,6 +1213,8 @@ async function scrapePentagram(url: string): Promise<ScrapedWork[]> {
     if (!/\/work\/[^/?#]+/.test(href)) return;
 
     const workUrl = normalizeUrl(toAbsolute(url, href));
+    const key = workUrl.toLowerCase();
+    if (seen.has(key)) return;
 
     // 提取标题
     let title = $card.find("h2, h3, .title, [class*='title']").first().text().trim();
@@ -1228,7 +1231,38 @@ async function scrapePentagram(url: string): Promise<ScrapedWork[]> {
       workUrl,
       thumbnailUrl,
     });
+    seen.add(key);
   });
+
+  // Pentagram has changed the card wrapper on newer pages. Reuse the same
+  // HTML already downloaded above and inspect work links directly; this adds
+  // no per-image network requests and keeps refresh time predictable.
+  if (items.length < 12) {
+    $("a[href^='/work/'], a[href*='pentagram.com/work/']").each((_, el) => {
+      if (items.length >= 12) return;
+      const $link = $(el);
+      const href = $link.attr("href") || "";
+      if (!href || !/\/work\/[^/?#]+/.test(href)) return;
+
+      const workUrl = normalizeUrl(toAbsolute(url, href));
+      const key = workUrl.toLowerCase();
+      if (seen.has(key)) return;
+
+      const $root = $link.closest("article, li, [class*='card'], [data-card]").length
+        ? $link.closest("article, li, [class*='card'], [data-card]")
+        : $link;
+      const title =
+        $link.attr("aria-label") ||
+        $link.attr("title") ||
+        $root.find("h1,h2,h3,h4,[class*='title'],[class*='name']").first().text().trim() ||
+        $link.text().replace(/\s+/g, " ").trim();
+      if (!title || title.length < 2 || IGNORE_TITLES.has(title.toLowerCase())) return;
+
+      const thumbnailUrl = extractMediaOrPlaceholder($, url, $root, workUrl);
+      seen.add(key);
+      items.push({ title, workUrl, thumbnailUrl });
+    });
+  }
 
   return items.slice(0, 12);
 }
@@ -1489,6 +1523,35 @@ async function scrapeCollins(url: string): Promise<ScrapedWork[]> {
     seen.add(key);
     items.push({ title, workUrl, thumbnailUrl });
   });
+
+  // Collins occasionally changes the landing-page card wrappers. Fall back to
+  // the case-study links themselves so a wrapper rename does not remove all
+  // Collins covers from the feed.
+  if (items.length === 0) {
+    $("a[href*='/case-studies/']").each((_, el) => {
+      const $link = $(el);
+      const href = $link.attr("href") || "";
+      if (!href || /\/case-studies\/?$/.test(href)) return;
+
+      const workUrl = normalizeUrl(toAbsolute(caseStudiesUrl, href));
+      const key = workUrl.toLowerCase();
+      if (seen.has(key)) return;
+
+      const $root = $link.closest("article, li, [class*='card'], [data-card]").length
+        ? $link.closest("article, li, [class*='card'], [data-card]")
+        : $link;
+      const title =
+        $link.attr("aria-label") ||
+        $link.attr("title") ||
+        $root.find("h1,h2,h3,h4,[class*='title'],[class*='name']").first().text().trim() ||
+        $link.text().replace(/\s+/g, " ").trim();
+      if (!title || title.length < 2 || IGNORE_TITLES.has(title.toLowerCase())) return;
+
+      const thumbnailUrl = extractMediaOrPlaceholder($, caseStudiesUrl, $root, workUrl);
+      seen.add(key);
+      items.push({ title, workUrl, thumbnailUrl });
+    });
+  }
 
   return items.slice(0, 24);
 }

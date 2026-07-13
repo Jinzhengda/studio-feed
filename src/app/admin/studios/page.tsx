@@ -164,8 +164,6 @@ export default function StudiosAdminPage() {
   });
   const activeCount = studios.filter((studio) => studio.is_active).length;
   const inactiveCount = studios.length - activeCount;
-  const fallbackCoverCount = studios.filter((studio) => studio.cover_url).length;
-
   function openCreateForm() {
     setForm({ ...emptyForm });
     setMessage("");
@@ -299,35 +297,13 @@ export default function StudiosAdminPage() {
   }
 
   return (
-    <div className="space-y-12">
+    <div className="admin-studios-page">
       {toast && (
         <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 rounded-full bg-black px-4 py-2 text-sm text-white shadow-lg">
           {toast}
         </div>
       )}
       <div>
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-medium">工作室列表</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              共 {studios.length} 家，{activeCount} 家启用，{inactiveCount} 家停用，{fallbackCoverCount}{" "}
-              家已上传兜底封面
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button type="button" onClick={openCreateForm}>
-              新增工作室
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={refreshDemo}
-              loading={refreshing}
-            >
-              {refreshing ? "刷新中" : "刷新数据"}
-            </Button>
-          </div>
-        </div>
         {message && !isFormOpen && (
           <p className="mb-6 whitespace-pre-wrap text-sm text-[var(--muted)]">
             {message}
@@ -349,30 +325,50 @@ export default function StudiosAdminPage() {
           </div>
         </div>
 
-        <div className="admin-filter-bar mb-6">
-          <InputField
-            inputType="search"
-            containerClassName="w-full max-w-96 shrink-0"
-            aria-label="搜索工作室"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索名称、官网、地区或标签"
-          />
-          <div className="admin-filter-group">
-            {(["all", "active", "inactive"] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={`admin-filter-pill ${
-                  statusFilter === item
-                    ? "admin-filter-pill-active"
-                    : "admin-filter-pill-idle"
-                }`}
-                onClick={() => setStatusFilter(item)}
-              >
-                {item === "all" ? "全部" : item === "active" ? "启用" : "停用"}
-              </button>
-            ))}
+        <div className="admin-filter-bar">
+          <div className="admin-filter-tools">
+            <InputField
+              inputType="search"
+              containerClassName="admin-search-field"
+              aria-label="搜索工作室"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索名称、官网、地区或标签"
+            />
+            <div className="admin-filter-group">
+              {(["all", "active", "inactive"] as const).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`admin-filter-pill ${
+                    statusFilter === item
+                      ? "admin-filter-pill-active"
+                      : "admin-filter-pill-idle"
+                  }`}
+                  onClick={() => setStatusFilter(item)}
+                >
+                  {item === "all" ? "全部" : item === "active" ? "启用" : "停用"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="admin-toolbar-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              className="admin-toolbar-button"
+              onClick={refreshDemo}
+              loading={refreshing}
+            >
+              {refreshing ? "刷新中" : "刷新数据"}
+            </Button>
+            <Button
+              type="button"
+              className="admin-toolbar-button admin-toolbar-button-primary"
+              onClick={openCreateForm}
+            >
+              新增工作室
+            </Button>
           </div>
         </div>
 
@@ -423,8 +419,15 @@ export default function StudiosAdminPage() {
               )}
             </div>
 
-            <table className="hidden w-full border-collapse text-sm md:table">
-              <thead>
+            <table className="admin-studios-table hidden w-full table-fixed border-collapse text-sm md:table">
+              <colgroup>
+                <col className="admin-col-name" />
+                <col className="admin-col-website" />
+                <col className="admin-col-cover" />
+                <col className="admin-col-status" />
+                <col className="admin-col-actions" />
+              </colgroup>
+              <thead className="sr-only">
                 <tr className="text-left">
                   <th className="border-b border-[var(--stroke)] py-3">名称</th>
                   <th className="border-b border-[var(--stroke)] py-3">官网</th>
@@ -436,13 +439,13 @@ export default function StudiosAdminPage() {
               <tbody>
                 {filteredStudios.map((studio) => (
                   <tr key={studio.id}>
-                    <td className="border-b border-[var(--stroke)] py-3">
+                    <td className="admin-table-cell admin-name-cell">
                       {studio.name}
                     </td>
-                    <td className="border-b border-[var(--stroke)] py-3">
-                      {studio.website_url || "-"}
+                    <td className="admin-table-cell admin-website-cell">
+                      <span className="block truncate">{studio.website_url || "-"}</span>
                     </td>
-                    <td className="border-b border-[var(--stroke)] py-3">
+                    <td className="admin-table-cell admin-cover-cell">
                       {(() => {
                         const status = coverStatus(studio);
                         return (
@@ -459,27 +462,29 @@ export default function StudiosAdminPage() {
                                 无图
                               </span>
                             )}
-                            <div className="min-w-0">
-                              <p>{status.label}</p>
-                              <p className="text-xs text-[var(--muted)]">{status.hint}</p>
+                            <div className="min-w-0 py-1">
+                              <p className="leading-[21px]">{status.label}</p>
+                              <p className="truncate text-xs leading-[18px] text-[var(--muted)]">{status.hint}</p>
                             </div>
                           </div>
                         );
                       })()}
                     </td>
-                    <td className="border-b border-[var(--stroke)] py-3">
+                    <td className="admin-table-cell admin-status-cell">
                       {studio.is_active ? "是" : "否"}
                     </td>
-                    <td className="border-b border-[var(--stroke)] py-3">
-                      <div className="flex gap-2">
+                    <td className="admin-table-cell admin-actions-cell">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
+                          className="admin-row-action"
                           onClick={() => openEditForm(studio)}
                         >
                           编辑
                         </Button>
                         <Button
                           variant="danger"
+                          className="admin-row-action admin-row-delete"
                           onClick={() => handleDelete(studio.id)}
                           loading={activeStudioId === studio.id}
                         >

@@ -1,48 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import InputField from "@/components/InputField";
 import { createClient } from "@/lib/supabase/client";
+import InputField from "@/components/InputField";
 
 export default function MobileFeedSearch() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!isMounted) return;
-      setIsAuthed(!!user);
-      setLoading(false);
-    }
-
-    void loadUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadUser();
+    let mounted = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (mounted) setIsAuthed(Boolean(data.user));
     });
-
     return () => {
-      isMounted = false;
-      subscription.unsubscribe();
+      mounted = false;
     };
   }, [supabase]);
 
-  if (pathname !== "/" || loading || !isAuthed) {
+  if (pathname !== "/") {
     return null;
   }
+  if (isAuthed !== true) return null;
 
   function updateQuery(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -58,7 +41,7 @@ export default function MobileFeedSearch() {
   }
 
   return (
-    <div className="order-3 mt-3 w-full md:order-none md:mt-0 md:w-[240px]">
+    <div className="site-header-search order-3 mt-3 w-full md:order-none md:mt-0 md:w-[240px]">
       <InputField
         inputType="search"
         aria-label="搜索作品或工作室"

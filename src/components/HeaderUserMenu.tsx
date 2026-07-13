@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import MobileMenu from "./MobileMenu";
+import { HeaderMenuIcon } from "./MobileMenu";
 
 export default function HeaderUserMenu() {
   const supabase = createClient();
@@ -73,6 +74,9 @@ export default function HeaderUserMenu() {
   }, [supabase]);
 
   if (loading) {
+    if (pathname === "/") {
+      return <Link href="/login" className="site-header-login-link">登录</Link>;
+    }
     return isAdminPath ? (
       <MobileMenu
         isAuthed={true}
@@ -81,15 +85,23 @@ export default function HeaderUserMenu() {
         showThemeToggle={true}
       />
     ) : (
-      <span className="site-header-menu-fallback" aria-hidden="true" />
+      <span className="site-header-menu-fallback" aria-hidden="true">
+        <HeaderMenuIcon />
+      </span>
     );
   }
 
   if (!isAuthed) {
+    if (pathname === "/") {
+      return <Link href="/login" className="site-header-login-link">登录</Link>;
+    }
     return (
-      <Link href="/login" className="text-sm">
-        登录
-      </Link>
+      <MobileMenu
+        isAuthed={false}
+        avatarUrl={null}
+        showNavLinks={true}
+        showThemeToggle={true}
+      />
     );
   }
 

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ALLOWED_HOSTS = new Set(["s.u-d-l.com"]);
+// 只代理作品采集器使用的已知图片 CDN，避免把这个接口变成任意地址的请求转发器。
+const ALLOWED_HOSTS = new Set([
+  "s.u-d-l.com",
+  "www.weareink.co.uk",
+  "pentagram-production.imgix.net",
+  "pentagram-production-uploads.s3.amazonaws.com",
+  "basedesign2.imgix.net",
+  "cdn.sanity.io",
+]);
 
 function decodeHex(input: string) {
   if (!/^[\da-f]+$/i.test(input) || input.length % 2 !== 0) return "";

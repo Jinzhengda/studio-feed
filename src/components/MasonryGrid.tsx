@@ -1,8 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import WorkImage from "./WorkImage";
+import {
+  getCardMode,
+  getServerCardMode,
+  subscribeCardMode,
+} from "@/lib/card-mode";
 
 type Work = {
   id: string;
@@ -34,6 +46,11 @@ export default function MasonryGrid({
   const query = searchParams.get("q") || "";
   const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
   const randomSeed = Number(searchParams.get("seed") || 0);
+  const cardMode = useSyncExternalStore(
+    subscribeCardMode,
+    getCardMode,
+    getServerCardMode,
+  );
 
   const loadMoreWorks = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
@@ -151,22 +168,27 @@ export default function MasonryGrid({
                 href={work.work_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex flex-col overflow-hidden border border-[var(--stroke)] bg-[var(--card)] transition-all duration-200 hover:shadow-lg hover:-translate-y-1 Claude Code-pointer"
+                className={`work-card group work-card-mode-${cardMode}`}
               >
-                <div className="overflow-hidden">
+                <div className="work-card-media">
                   <WorkImage
                     src={work.thumbnail_url}
                     fallback={work.studio_cover_url}
                     alt={work.title}
-                    className="block w-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-103"
+                    className="work-card-image"
                   />
-                </div>
-                <div className="p-3 sm:p-4">
-                  <div className="text-xs text-[var(--muted)]">
-                    {new Date(work.published_at || work.first_seen_at).toLocaleDateString("zh-CN")}
+                  <div className="work-card-overlay" aria-hidden={cardMode !== "text"}>
+                    <h3 className="work-card-overlay-title">{work.title}</h3>
+                    <div className="work-card-overlay-meta">
+                      <span>{formatWorkDate(work)}</span>
+                      <span>{work.studio}</span>
+                    </div>
                   </div>
-                  <h3 className="mt-2 text-sm font-medium sm:text-lg">{work.title}</h3>
-                  <p className="mt-1 text-sm text-[var(--muted)]">{work.studio}</p>
+                </div>
+                <div className="work-card-details">
+                  <div className="work-card-date">{formatWorkDate(work)}</div>
+                  <h3 className="work-card-title">{work.title}</h3>
+                  <p className="work-card-studio">{work.studio}</p>
                 </div>
               </a>
             ))}
@@ -180,7 +202,7 @@ export default function MasonryGrid({
 
       <div ref={sentinelRef} aria-hidden="true" />
 
-      {isLoadingMore && <MasonrySkeleton columns={columns} />}
+      {isLoadingMore && <MasonrySkeleton columns={columns} cardMode={cardMode} />}
     </div>
   );
 
@@ -199,6 +221,10 @@ function getSortTime(work: Work) {
   return new Date(work.published_at || work.first_seen_at).getTime();
 }
 
+function formatWorkDate(work: Work) {
+  return new Date(work.published_at || work.first_seen_at).toLocaleDateString("zh-CN");
+}
+
 function dedupeWorks(works: Work[]) {
   const seen = new Set<string>();
 
@@ -210,10 +236,17 @@ function dedupeWorks(works: Work[]) {
   });
 }
 
-function MasonrySkeleton({ columns }: { columns: number }) {
+function MasonrySkeleton({
+  columns,
+  cardMode,
+}: {
+  columns: number;
+  cardMode: "image" | "text";
+}) {
   const columnItems = Array.from({ length: columns }, (_, columnIndex) =>
     Array.from({ length: 2 }, (_, itemIndex) => columnIndex * 2 + itemIndex)
   );
+  const mediaHeights = [188, 318, 164, 252, 212, 334, 174, 286];
 
   return (
     <div
@@ -225,17 +258,19 @@ function MasonrySkeleton({ columns }: { columns: number }) {
           {items.map((item) => (
             <div
               key={item}
-              className="overflow-hidden border border-[var(--stroke)] bg-[var(--card)]"
+              className={`work-card work-card-mode-${cardMode} work-card-skeleton`}
             >
               <div
-                className="admin-skeleton-block"
-                style={{ height: item % 3 === 0 ? 260 : item % 3 === 1 ? 340 : 300 }}
+                className="work-card-skeleton-media admin-skeleton-block"
+                style={{ height: mediaHeights[item % mediaHeights.length] }}
               />
-              <div className="space-y-3 p-3 sm:p-4">
-                <div className="admin-skeleton-line w-24" />
-                <div className="admin-skeleton-line h-5 w-3/4" />
-                <div className="admin-skeleton-line w-1/2" />
-              </div>
+              {cardMode === "image" && (
+                <div className="work-card-skeleton-details">
+                  <div className="admin-skeleton-line w-20" />
+                  <div className="admin-skeleton-line h-5 w-4/5" />
+                  <div className="admin-skeleton-line w-2/5" />
+                </div>
+              )}
             </div>
           ))}
         </div>

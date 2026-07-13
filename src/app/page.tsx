@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import MasonryGrid from "@/components/MasonryGrid";
 import { ButtonLink } from "@/components/Button";
 import Link from "next/link";
-import FloatingHeroGallery from "@/components/FloatingHeroGallery";
 import {
   extractDateFromMediaVersion,
   shouldDisplayWork,
@@ -36,33 +35,6 @@ type WorkRow = {
     | { name: string | null; cover_url: string | null; owner_id?: string | null }[]
     | null;
 };
-
-const demoSizes = [
-  [800, 520],
-  [800, 1000],
-  [800, 640],
-  [800, 900],
-  [800, 480],
-  [800, 1100],
-  [800, 700],
-  [800, 560],
-  [800, 840],
-  [800, 620],
-];
-
-const demoWorks: WorkCard[] = Array.from({ length: 10 }).map((_, i) => {
-  const [w, h] = demoSizes[i % demoSizes.length];
-  return {
-    id: `demo-${i}`,
-    title: `Demo Work ${i + 1}`,
-    studio: `Studio ${i + 1}`,
-    thumbnail_url: `https://picsum.photos/seed/demo-${i}/${w}/${h}`,
-    work_url: "#",
-    published_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-    first_seen_at: new Date().toISOString(),
-  };
-});
 
 const HOME_PAGE_SIZE = 20;
 const HOME_CANDIDATE_SIZE = 320;
@@ -127,27 +99,19 @@ export default async function HomePage() {
 
   if (!userData.user) {
     return (
-      <section className="home-hero-section relative h-[calc(100vh-49px)] overflow-hidden px-10 py-8">
-        <FloatingHeroGallery items={demoWorks} />
-        <div className="absolute left-1/2 top-[40%] z-10 flex w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col items-center px-10 text-center">
-          <h1 className="max-w-3xl text-5xl font-medium leading-[1.02] sm:text-[56px]">
-            你的设计灵感<wbr />
-            工作台
+      <section className="home-landing-page relative flex min-h-[calc(100vh-84px)] items-center justify-center overflow-hidden px-6 pb-24 text-center">
+        <div className="home-landing-content relative z-10">
+          <div className="home-landing-kicker">StudioFeed</div>
+          <h1 className="home-landing-title mt-6">
+            Your design
+            <br />
+            inspiration workbench
           </h1>
-          <p className="mt-4 max-w-[480px] text-base leading-[1.35] text-[var(--muted)]">
-            聚合全球设计工作室的新作品、封面与更新时间。少一点噪音，多一点可以马上收藏、研究和回看的视觉线索。
-          </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-5">
-            <Link
-              href="/login"
-              className="home-hero-primary inline-flex h-12 w-40 items-center justify-center rounded-none text-base transition-opacity hover:opacity-80"
-            >
+          <div className="mt-10 flex items-center justify-center gap-5">
+            <Link href="/login" className="home-landing-primary">
               登录
             </Link>
-            <Link
-              href="/about"
-              className="inline-flex h-12 w-40 items-center justify-center rounded-none border border-[var(--stroke)] bg-[var(--card)] text-base text-[var(--ink)] transition-colors hover:bg-[var(--hover)]"
-            >
+            <Link href="/about" className="home-landing-secondary">
               关于
             </Link>
           </div>
