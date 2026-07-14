@@ -76,7 +76,9 @@ export default function CoverUploader({
           查看已上传
         </a>
       )}
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && (
+        <span className="text-sm text-[var(--color-text-danger)]">{error}</span>
+      )}
     </div>
   );
 }

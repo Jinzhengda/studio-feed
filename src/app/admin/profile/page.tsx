@@ -112,7 +112,7 @@ export default function ProfilePage() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="h-full w-full bg-gray-200 flex items-center justify-center text-gray-600 text-2xl font-medium">
+              <div className="h-full w-full bg-[var(--color-fill-neutral)] flex items-center justify-center text-[var(--color-text-secondary)] text-2xl font-medium">
                 U
               </div>
             )}

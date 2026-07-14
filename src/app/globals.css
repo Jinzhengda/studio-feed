@@ -16,6 +16,7 @@
   --color-text-danger: #e7010b;
   --color-text-success: #15803d;
   --color-text-inverse: #ffffff;
+  --color-text-on-primary: #ffffff;
   --color-text-brand: #23433c;
   --color-background-elevated: #ffffff;
   --color-background-danger: #fff1f2;
@@ -70,6 +71,7 @@
   --color-text-danger: #fb7185;
   --color-text-success: #4ade80;
   --color-text-inverse: #ffffff;
+  --color-text-on-primary: #101010;
   --color-text-brand: #6ea396;
   --color-background-elevated: #171717;
   --color-background-danger: #35191d;
@@ -106,6 +108,7 @@
     --color-text-danger: #fb7185;
     --color-text-success: #4ade80;
     --color-text-inverse: #ffffff;
+    --color-text-on-primary: #101010;
     --color-text-brand: #6ea396;
     --color-background-elevated: #171717;
     --color-background-danger: #35191d;
@@ -901,7 +904,7 @@ b,
   .menu-row-logout {
     padding-top: 12px;
     padding-bottom: 16px;
-    color: #e7010b;
+    color: var(--color-text-danger);
   }
   .menu-label {
     font-size: 14px;
@@ -1130,7 +1133,7 @@ b,
 }
 .home-landing-primary {
   background: var(--color-fill-primary);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-primary);
 }
 .home-landing-primary:hover {
   opacity: 0.82;
@@ -1377,8 +1380,8 @@ b,
   display: grid;
   min-height: 100vh;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  background: #ffffff;
-  color: #171717;
+  background: var(--bg);
+  color: var(--color-text-primary);
 }
 
 .login-form-panel {
@@ -1409,7 +1412,7 @@ b,
   font-size: 14px;
   font-weight: 400;
   line-height: 21px;
-  color: #525252;
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
@@ -1421,9 +1424,9 @@ b,
 }
 
 .login-form .sf-input__control {
-  border-color: #f2f2f2;
+  border-color: var(--color-border-card);
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--color-background-elevated);
   padding-inline: 16px;
 }
 
@@ -1459,14 +1462,14 @@ b,
 }
 
 .login-secondary-action a:hover {
-  background: #f2f2f2;
+  background: var(--color-fill-hover);
 }
 
 .login-visual-panel {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background: #f7f7f7;
+  background: var(--color-fill-neutral);
 }
 
 .login-gallery {

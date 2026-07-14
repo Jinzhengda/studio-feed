@@ -299,7 +299,7 @@ export default function StudiosAdminPage() {
   return (
     <div className="admin-studios-page">
       {toast && (
-        <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 rounded-full bg-black px-4 py-2 text-sm text-white shadow-lg">
+        <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-text-primary)] px-4 py-2 text-sm text-[var(--bg)] shadow-lg">
           {toast}
         </div>
       )}

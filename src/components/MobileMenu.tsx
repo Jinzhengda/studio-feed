@@ -169,7 +169,7 @@ export default function MobileMenu({
               </>
             )}
             <button onClick={handleLogout} className="menu-row menu-row-logout w-full text-left">
-              <span className="menu-label text-[#e7010b]">登出</span>
+              <span className="menu-label">登出</span>
               <LogoutIcon />
             </button>
 

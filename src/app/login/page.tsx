@@ -117,7 +117,9 @@ export default function LoginPage() {
               required
             />
 
-            {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
+            {errorMsg && (
+              <p className="text-sm text-[var(--color-text-danger)]">{errorMsg}</p>
+            )}
 
             <Button
               type="submit"
