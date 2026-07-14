@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import MasonryGrid from "@/components/MasonryGrid";
 import { ButtonLink } from "@/components/Button";
+import SpiralImages from "@/components/SpiralImages";
 import Link from "next/link";
+import {
+  LOGIN_GALLERY_BUCKET,
+  loginGalleryAssets,
+  loginGalleryObjectPath,
+} from "@/lib/login-gallery";
 import {
   extractDateFromMediaVersion,
   shouldDisplayWork,
@@ -98,9 +104,31 @@ export default async function HomePage() {
   const { data: userData } = await supabase.auth.getUser();
 
   if (!userData.user) {
+    const landingImages = loginGalleryAssets.map((asset) => {
+      const { data } = supabase.storage
+        .from(LOGIN_GALLERY_BUCKET)
+        .getPublicUrl(loginGalleryObjectPath(asset.objectName));
+
+      return { src: data.publicUrl };
+    });
+
     return (
-      <section className="home-landing-page relative flex min-h-[calc(100vh-84px)] items-center justify-center overflow-hidden px-6 pb-24 text-center">
-        <div className="home-landing-content relative z-10">
+      <section className="home-landing-page relative flex min-h-screen items-center justify-center overflow-hidden px-6 text-center">
+        <SpiralImages
+          images={landingImages}
+          turns={4}
+          spacing={4}
+          spread={7}
+          imageSize={160}
+          sizeAttenuation={2}
+          fadeIn={20}
+          fadeOut={0}
+          cornerRadius={0}
+          speed={1}
+          className="home-spiral-gallery"
+          aria-hidden
+        />
+        <div className="home-landing-content z-10">
           <div className="home-landing-kicker">StudioFeed</div>
           <h1 className="home-landing-title mt-6">
             Your design
