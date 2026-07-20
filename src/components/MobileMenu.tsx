@@ -127,7 +127,7 @@ export default function MobileMenu({
       </button>
 
       <div
-        className={`menu-panel absolute right-0 top-full z-50 mt-[18px] w-[248px] overflow-hidden rounded-none border border-[var(--color-border-card)] bg-[var(--bg)] shadow-lg transition-opacity ${
+        className={`menu-panel absolute right-0 top-full z-50 mt-[12px] w-[248px] overflow-hidden rounded-none border border-[var(--color-border-card)] bg-[var(--bg)] shadow-lg transition-opacity ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
