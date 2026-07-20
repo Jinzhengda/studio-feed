@@ -15,6 +15,11 @@ import {
   getServerCardMode,
   subscribeCardMode,
 } from "@/lib/card-mode";
+import {
+  getSearchQuery,
+  getServerSearchQuery,
+  subscribeSearchQuery,
+} from "@/lib/search-query";
 
 type Work = {
   id: string;
@@ -43,7 +48,11 @@ export default function MasonryGrid({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(initialWorks.length >= pageSize);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const query = searchParams.get("q") || "";
+  const query = useSyncExternalStore(
+    subscribeSearchQuery,
+    getSearchQuery,
+    getServerSearchQuery,
+  );
   const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
   const randomSeed = Number(searchParams.get("seed") || 0);
   const cardMode = useSyncExternalStore(

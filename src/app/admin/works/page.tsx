@@ -73,11 +73,8 @@ export default function WorksAdminPage() {
 
     return matchesQuery && matchesVisibility;
   });
-  const visibleCount = displayWorks.filter((work) => work.is_visible).length;
-  const hiddenCount = displayWorks.length - visibleCount;
   const filteredVisibleCount = filteredWorks.filter((work) => work.is_visible).length;
   const filteredHiddenCount = filteredWorks.length - filteredVisibleCount;
-
   async function toggleVisible(work: Work) {
     setActiveWorkId(work.id);
     const { error } = await supabase
@@ -113,20 +110,8 @@ export default function WorksAdminPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">作品管理</h1>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            共 {displayWorks.length} 条，{visibleCount} 条可见，{hiddenCount} 条隐藏
-          </p>
-        </div>
-        <Button type="button" variant="secondary" onClick={loadWorks} loading={loading}>
-          {loading ? "刷新中" : "刷新列表"}
-        </Button>
-      </div>
-
-      {message && <p className="mt-4 text-sm text-[var(--muted)]">{message}</p>}
+    <div className="admin-works-page">
+      {message && <p className="mb-6 text-sm text-[var(--muted)]">{message}</p>}
 
       <div className="admin-stats-grid">
         <div className="admin-stat-card">
@@ -143,30 +128,43 @@ export default function WorksAdminPage() {
         </div>
       </div>
 
-      <div className="admin-filter-bar mt-6">
-        <InputField
-          inputType="search"
-          containerClassName="w-full max-w-96 shrink-0"
-          aria-label="搜索作品"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索标题、工作室或链接"
-        />
-        <div className="admin-filter-group">
-          {(["all", "visible", "hidden"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={`admin-filter-pill ${
-                visibility === item
-                  ? "admin-filter-pill-active"
-                  : "admin-filter-pill-idle"
-              }`}
-              onClick={() => setVisibility(item)}
-            >
-              {item === "all" ? "全部" : item === "visible" ? "可见" : "隐藏"}
-            </button>
-          ))}
+      <div className="admin-filter-bar">
+        <div className="admin-filter-tools">
+          <InputField
+            inputType="search"
+            containerClassName="admin-search-field"
+            aria-label="搜索作品"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索标题、工作室或链接"
+          />
+          <div className="admin-filter-group">
+            {(["all", "visible", "hidden"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={`admin-filter-pill ${
+                  visibility === item
+                    ? "admin-filter-pill-active"
+                    : "admin-filter-pill-idle"
+                }`}
+                onClick={() => setVisibility(item)}
+              >
+                {item === "all" ? "全部" : item === "visible" ? "可见" : "隐藏"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="admin-toolbar-actions">
+          <Button
+            type="button"
+            variant="secondary"
+            className="admin-toolbar-button"
+            onClick={loadWorks}
+            loading={loading}
+          >
+            {loading ? "刷新中" : "刷新列表"}
+          </Button>
         </div>
       </div>
 
@@ -202,6 +200,7 @@ export default function WorksAdminPage() {
                 <div className="flex gap-3">
                   <Button
                     variant="ghost"
+                    className="admin-row-action"
                     onClick={() => toggleVisible(work)}
                     loading={activeWorkId === work.id}
                   >
@@ -209,6 +208,7 @@ export default function WorksAdminPage() {
                   </Button>
                   <Button
                     variant="danger"
+                    className="admin-row-action admin-row-delete"
                     onClick={() => handleDelete(work.id)}
                     disabled={activeWorkId === work.id}
                   >
@@ -226,20 +226,27 @@ export default function WorksAdminPage() {
         {loading && <WorksCardSkeleton />}
       </div>
 
-      <table className="mt-2 hidden w-full border-collapse text-sm md:table">
+      <table className="admin-studios-table admin-works-table hidden w-full table-fixed border-collapse text-sm md:table">
+        <colgroup>
+          <col className="admin-work-col-title" />
+          <col className="admin-work-col-studio" />
+          <col className="admin-work-col-date" />
+          <col className="admin-work-col-visibility" />
+          <col className="admin-work-col-actions" />
+        </colgroup>
         <thead>
           <tr className="text-left">
-            <th className="border-b border-[var(--stroke)] py-3">作品</th>
-            <th className="border-b border-[var(--stroke)] py-3">工作室</th>
-            <th className="border-b border-[var(--stroke)] py-3">发布时间</th>
-            <th className="border-b border-[var(--stroke)] py-3">可见</th>
-            <th className="border-b border-[var(--stroke)] py-3">操作</th>
+            <th className="admin-table-head-cell">作品</th>
+            <th className="admin-table-head-cell">工作室</th>
+            <th className="admin-table-head-cell">发布时间</th>
+            <th className="admin-table-head-cell">可见</th>
+            <th className="admin-table-head-cell">操作</th>
           </tr>
         </thead>
         <tbody>
           {filteredWorks.map((work) => (
             <tr key={work.id}>
-              <td className="border-b border-[var(--stroke)] py-3">
+              <td className="admin-table-cell admin-work-title-cell">
                 <a
                   href={work.work_url || "#"}
                   target="_blank"
@@ -249,21 +256,22 @@ export default function WorksAdminPage() {
                   {work.title}
                 </a>
               </td>
-              <td className="border-b border-[var(--stroke)] py-3">
+              <td className="admin-table-cell">
                 {getStudioName(work)}
               </td>
-              <td className="border-b border-[var(--stroke)] py-3">
+              <td className="admin-table-cell">
                 {work.published_at
                   ? new Date(work.published_at).toLocaleDateString()
                   : "-"}
               </td>
-              <td className="border-b border-[var(--stroke)] py-3">
+              <td className="admin-table-cell">
                 {work.is_visible ? "是" : "否"}
               </td>
-              <td className="border-b border-[var(--stroke)] py-3">
-                <div className="flex gap-2">
+              <td className="admin-table-cell admin-actions-cell">
+                <div className="flex justify-end gap-2">
                   <Button
                     variant="ghost"
+                    className="admin-row-action"
                     onClick={() => toggleVisible(work)}
                     loading={activeWorkId === work.id}
                   >
@@ -271,6 +279,7 @@ export default function WorksAdminPage() {
                   </Button>
                   <Button
                     variant="danger"
+                    className="admin-row-action admin-row-delete"
                     onClick={() => handleDelete(work.id)}
                     disabled={activeWorkId === work.id}
                   >
