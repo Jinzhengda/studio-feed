@@ -7,9 +7,13 @@ import { buttonClassName } from "@/components/Button";
 export default function CoverUploader({
   value,
   onChange,
+  className = "",
+  showPreview = true,
 }: {
   value: string;
   onChange: (url: string) => void;
+  className?: string;
+  showPreview?: boolean;
 }) {
   const supabase = createClient();
   const [uploading, setUploading] = useState(false);
@@ -55,7 +59,7 @@ export default function CoverUploader({
   }
 
   return (
-    <div className="mt-2 flex items-center gap-3">
+    <div className={`mt-2 flex items-center gap-3 ${className}`.trim()}>
       <label className={buttonClassName({ variant: "secondary", className: "cursor-pointer" })}>
         {uploading ? "上传中..." : "上传封面图"}
         <input
@@ -66,7 +70,7 @@ export default function CoverUploader({
           disabled={uploading}
         />
       </label>
-      {value && (
+      {showPreview && value && (
         <a
           href={value}
           className={buttonClassName({ variant: "ghost" })}

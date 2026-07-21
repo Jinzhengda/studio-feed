@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { load } from "cheerio";
@@ -1873,6 +1873,12 @@ export async function POST(request: Request) {
   if (!data.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "后台抓取需要 Supabase 服务端环境变量" },
+      { status: 500 },
+    );
+  }
 
   const { data: claimed, error: claimError } = await supabase.rpc("claim_manual_refresh");
   if (claimError) {
@@ -1904,7 +1910,33 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!studios?.length) return NextResponse.json({ inserted: 0, updated: 0, debug: [] });
 
-  return refreshStudios(supabase, studios);
+  const refreshStartedAt = new Date().toISOString();
+  const studioIds = studios.map((studio) => studio.id);
+  const { error: startError } = await supabase
+    .from("studios")
+    .update({ refresh_started_at: refreshStartedAt, refresh_error: null })
+    .in("id", studioIds);
+  if (startError) {
+    return NextResponse.json({ error: startError.message }, { status: 500 });
+  }
+
+  after(async () => {
+    const admin = createAdminClient();
+    try {
+      await refreshStudios(admin, studios);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "后台抓取失败";
+      await admin
+        .from("studios")
+        .update({ refresh_started_at: null, refresh_error: message.slice(0, 500) })
+        .in("id", studioIds);
+    }
+  });
+
+  return NextResponse.json(
+    { status: "started", studioCount: studios.length },
+    { status: 202 },
+  );
 }
 
 export async function GET(request: Request) {

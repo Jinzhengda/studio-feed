@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CoverUploader from "@/components/CoverUploader";
 import InputField from "@/components/InputField";
@@ -17,6 +18,9 @@ type Studio = {
   location: string | null;
   tags: string | null;
   is_active: boolean;
+  refresh_started_at: string | null;
+  last_refreshed_at: string | null;
+  refresh_error: string | null;
 };
 
 const emptyForm = {
@@ -39,7 +43,8 @@ export default function StudiosAdminPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
+  const [startingRefresh, setStartingRefresh] = useState(false);
+  const [refreshingList, setRefreshingList] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -97,8 +102,8 @@ export default function StudiosAdminPage() {
     };
   }
 
-  async function loadStudios() {
-    setLoading(true);
+  async function loadStudios({ silent = false }: { silent?: boolean } = {}) {
+    if (!silent) setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -132,7 +137,7 @@ export default function StudiosAdminPage() {
       }
       setLatestWorkThumbByStudioId(latest);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -144,6 +149,49 @@ export default function StudiosAdminPage() {
   useEffect(() => {
     if (searchParams.get("new") === "1") openCreateForm();
   }, [searchParams]);
+
+  const refreshingStudioCount = studios.filter(
+    (studio) => Boolean(studio.refresh_started_at),
+  ).length;
+  const isBackgroundRefreshing = refreshingStudioCount > 0;
+
+  useEffect(() => {
+    if (!isBackgroundRefreshing) return;
+
+    const interval = window.setInterval(() => {
+      void loadStudios({ silent: true });
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+    // loadStudios intentionally stays local to this component; this effect only reacts to job state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBackgroundRefreshing]);
+
+  useEffect(() => {
+    if (!isFormOpen) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyPaddingRight = document.body.style.paddingRight;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+    const bodyPaddingRight = Number.parseFloat(
+      window.getComputedStyle(document.body).paddingRight,
+    );
+
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${bodyPaddingRight + scrollbarWidth}px`;
+    }
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.paddingRight = previousBodyPaddingRight;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+    };
+  }, [isFormOpen]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredStudios = studios.filter((studio) => {
@@ -250,49 +298,33 @@ export default function StudiosAdminPage() {
     }
   }
 
-  async function refreshDemo() {
+  async function refreshList() {
+    setRefreshingList(true);
+    try {
+      await loadStudios({ silent: true });
+      showToast("列表已更新");
+    } finally {
+      setRefreshingList(false);
+    }
+  }
+
+  async function startBackgroundRefresh() {
     setMessage("");
-    setRefreshing(true);
+    setStartingRefresh(true);
     try {
       const res = await fetch("/api/refresh-works", { method: "POST" });
-      setRefreshing(false);
       if (!res.ok) {
         const errorBody = await res.json().catch(() => null);
         showToast(errorBody?.error || "刷新失败（" + res.status + "）");
         return;
       }
       const result = await res.json();
-      const inserted = result.inserted ?? 0;
-      const updated = result.updated ?? 0;
-      const debugRows = Array.isArray(result.debug) ? result.debug : [];
-      if (inserted === 0 && updated === 0) {
-        showToast("无新内容");
-      } else {
-        const parts = [];
-        if (inserted > 0) parts.push(`新增 ${inserted} 条`);
-        if (updated > 0) parts.push(`更新封面 ${updated} 条`);
-        showToast(parts.join("，"));
-      }
-      if (debugRows.length > 0) {
-        setMessage(
-          debugRows
-            .map(
-              (d: {
-                studio?: string;
-                scraped?: number;
-                existing?: number;
-                matched?: number;
-                updated?: number;
-                inserted?: number;
-              }) =>
-                `${d.studio || "Unknown"}: scraped=${d.scraped ?? 0}, existing=${d.existing ?? 0}, matched=${d.matched ?? 0}, updated=${d.updated ?? 0}, inserted=${d.inserted ?? 0}`
-            )
-            .join("\n")
-        );
-      }
+      await loadStudios({ silent: true });
+      showToast(`已开始抓取 ${result.studioCount ?? 0} 家工作室，可继续操作`);
     } catch (e) {
-      setRefreshing(false);
       showToast("请求失败：" + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setStartingRefresh(false);
     }
   }
 
@@ -357,10 +389,24 @@ export default function StudiosAdminPage() {
               type="button"
               variant="secondary"
               className="admin-toolbar-button"
-              onClick={refreshDemo}
-              loading={refreshing}
+              onClick={refreshList}
+              loading={refreshingList}
             >
-              {refreshing ? "刷新中" : "刷新数据"}
+              {refreshingList ? "刷新中" : "刷新列表"}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="admin-toolbar-button"
+              onClick={startBackgroundRefresh}
+              loading={startingRefresh}
+              disabled={isBackgroundRefreshing}
+            >
+              {isBackgroundRefreshing
+                ? `抓取中 ${refreshingStudioCount}/${studios.length}`
+                : startingRefresh
+                  ? "提交中"
+                  : "抓取最新作品"}
             </Button>
             <Button
               type="button"
@@ -371,6 +417,12 @@ export default function StudiosAdminPage() {
             </Button>
           </div>
         </div>
+
+        {isBackgroundRefreshing && (
+          <p className="admin-refresh-status" role="status">
+            正在后台抓取 {refreshingStudioCount} 家工作室，页面可继续操作。
+          </p>
+        )}
 
         {loading ? (
           <StudiosLoadingSkeleton />
@@ -508,30 +560,45 @@ export default function StudiosAdminPage() {
       </div>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 py-8">
-          <div className="flex max-h-[calc(100vh-4rem)] w-full max-w-2xl flex-col border border-[var(--stroke)] bg-[var(--card)] p-5 shadow-xl">
-            <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h2 className="text-lg font-medium">
+        <div
+          className="admin-studio-modal-backdrop fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+          role="presentation"
+        >
+          <div
+            className="admin-studio-modal flex max-h-[calc(100vh-4rem)] w-full flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="studio-form-title"
+          >
+            <div className="admin-studio-modal__header flex shrink-0 items-center justify-between">
+              <h2 id="studio-form-title" className="admin-studio-modal__title">
                 {form.id ? "编辑工作室" : "新增工作室"}
               </h2>
-              <Button type="button" variant="ghost" onClick={closeForm}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="admin-studio-modal__close"
+                onClick={closeForm}
+              >
                 关闭
               </Button>
             </div>
 
             <form
               onSubmit={handleSave}
-              className="grid grid-cols-1 gap-4 overflow-y-auto pr-2"
+              className="admin-studio-modal__form grid grid-cols-1"
             >
               <InputField
-                label="名称"
+                label="工作室名称"
+                containerClassName="admin-studio-modal__field"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
               />
 
               <InputField
-                label="官网"
+                label="官网链接"
+                containerClassName="admin-studio-modal__field"
                 type="url"
                 value={form.website_url}
                 onChange={(e) =>
@@ -541,60 +608,59 @@ export default function StudiosAdminPage() {
 
               <InputField
                 label="RSS / 抓取地址"
+                containerClassName="admin-studio-modal__field"
                 type="url"
                 value={form.feed_url}
                 onChange={(e) => setForm({ ...form, feed_url: e.target.value })}
               />
 
-              <div>
-                <InputField
-                  label="兜底封面 URL（仅作品图加载失败时显示）"
-                  type="url"
-                  value={form.cover_url}
-                  onChange={(e) => setForm({ ...form, cover_url: e.target.value })}
-                  placeholder="https://example.com/cover.jpg"
-                />
-                <CoverUploader
-                  value={form.cover_url}
-                  onChange={(url) => saveCoverUrl(url)}
-                />
-                {!form.id && (
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    新建工作室时，上传后请点击“新增工作室”保存。
-                  </p>
-                )}
+              <div className="admin-studio-modal__field">
+                <label className="sf-input__label" htmlFor="studio-cover-url">
+                  兜底封面 URL（仅作品图加载失败时显示）
+                </label>
+                <div className="admin-studio-modal__cover-row">
+                  <div className="sf-input__control admin-studio-modal__cover-input">
+                    <input
+                      id="studio-cover-url"
+                      type="url"
+                      value={form.cover_url}
+                      onChange={(e) => setForm({ ...form, cover_url: e.target.value })}
+                      placeholder="https://example.com/cover.jpg"
+                      className="sf-input__native"
+                    />
+                  </div>
+                  <CoverUploader
+                    value={form.cover_url}
+                    onChange={(url) => saveCoverUrl(url)}
+                    className="admin-studio-modal__cover-uploader"
+                    showPreview={false}
+                  />
+                </div>
               </div>
 
-              <InputField
-                label="位置"
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-              />
-
-              <InputField
-                label="标签（逗号分隔）"
-                value={form.tags}
-                onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              />
-
-              <label className="flex items-center gap-2 text-sm">
+              <label className="admin-studio-modal__visibility">
                 <input
                   type="checkbox"
+                  className="sr-only"
                   checked={form.is_active}
-                  onChange={(e) =>
-                    setForm({ ...form, is_active: e.target.checked })
+                  onChange={(event) =>
+                    setForm({ ...form, is_active: event.target.checked })
                   }
                 />
-                是否启用
+                <span className="admin-studio-modal__visibility-indicator" aria-hidden="true">
+                  {form.is_active && <Check size={12} strokeWidth={2} />}
+                </span>
+                显示在列表
               </label>
 
-              <div className="flex gap-3 pt-1">
-                <Button type="submit">
+              <div className="admin-studio-modal__actions flex">
+                <Button type="submit" className="admin-studio-modal__submit">
                   {form.id ? "保存" : "新增工作室"}
                 </Button>
                 <Button
                   type="button"
                   variant="secondary"
+                  className="admin-studio-modal__reset"
                   onClick={() => setForm({ ...emptyForm })}
                 >
                   清空表单

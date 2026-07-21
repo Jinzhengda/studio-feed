@@ -51,7 +51,7 @@
   --text-caption-weight: 400;
   --text-button-size: 14px;
   --text-button-line: 14px;
-  --text-button-weight: 500;
+  --text-button-weight: 400;
   color-scheme: light;
 }
 
@@ -516,6 +516,24 @@ b,
   }
   .sf-button.admin-toolbar-button-primary {
     min-width: 120px;
+    border-color: #000000;
+    background: #000000;
+    color: #ffffff;
+  }
+  .sf-button.admin-toolbar-button-primary:hover:not(:disabled) {
+    border-color: #2b2b2b;
+    background: #2b2b2b;
+    color: #ffffff;
+  }
+  .dark .sf-button.admin-toolbar-button-primary {
+    border-color: #ffffff;
+    background: #ffffff;
+    color: #000000;
+  }
+  .dark .sf-button.admin-toolbar-button-primary:hover:not(:disabled) {
+    border-color: #e5e5e5;
+    background: #e5e5e5;
+    color: #000000;
   }
   .admin-studios-table {
     margin-top: 32px;
@@ -592,6 +610,7 @@ b,
     background: var(--color-fill-hover);
     color: var(--color-text-danger);
   }
+
   @media (max-width: 1023px) {
     .admin-filter-bar,
     .admin-filter-tools {
@@ -1254,12 +1273,11 @@ b,
   width: 100%;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--color-border-card);
+  border: 0;
   background: var(--color-background-elevated);
   padding: 0;
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: border-color 220ms ease;
 }
 
 .work-card-media {
@@ -1281,7 +1299,8 @@ b,
   width: 100%;
   flex-direction: column;
   align-items: flex-start;
-  padding: 16px;
+  background: var(--color-fill-neutral);
+  padding: 16px 4px;
 }
 
 .work-card-date,
@@ -1390,7 +1409,7 @@ b,
   width: 100%;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 16px 4px;
 }
 
 .work-card-skeleton-details .admin-skeleton-line {
@@ -1717,4 +1736,174 @@ b,
 .dark .btn-primary,
 .dark .toggle-pill-active {
   color: #000000 !important;
+}
+
+/* 工作室表单脱离 Tailwind component layer，避免开发模式裁剪动态管理页样式。 */
+.admin-studio-modal-backdrop {
+  background: rgb(0 0 0 / 28%);
+  overflow-y: auto;
+}
+
+.admin-refresh-status {
+  margin-top: 12px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans-zh);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.admin-studio-modal {
+  max-width: 534px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-background-elevated);
+  padding: 20px;
+  box-shadow: 0 16px 28px rgb(0 0 0 / 22%);
+}
+
+.admin-studio-modal__header {
+  margin-bottom: 24px;
+}
+
+.admin-studio-modal__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans-zh);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.sf-button.admin-studio-modal__close,
+.sf-button.admin-studio-modal__reset,
+.sf-button.admin-studio-modal__submit,
+.admin-studio-modal__cover-uploader .sf-button {
+  min-width: 0;
+  border-radius: 9999px;
+}
+
+.sf-button.admin-studio-modal__close {
+  min-width: 68px;
+}
+
+.admin-studio-modal__form {
+  gap: 12px;
+}
+
+.admin-studio-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-studio-modal__field .sf-input__label {
+  padding-inline: 4px;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.admin-studio-modal__field .sf-input__control {
+  height: 40px;
+  border-radius: 9999px;
+  padding-inline: 16px;
+}
+
+.admin-studio-modal__field .sf-input__control:focus-within,
+.admin-studio-modal__cover-input:focus-within {
+  border-color: var(--color-text-primary);
+  box-shadow: none;
+}
+
+.admin-studio-modal__cover-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.admin-studio-modal__cover-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 40px;
+  border-radius: 9999px;
+  padding-inline: 16px;
+}
+
+.admin-studio-modal__cover-uploader {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+.admin-studio-modal__cover-uploader .sf-button {
+  min-width: 110px;
+  height: 40px;
+  padding-inline: 16px;
+}
+
+.admin-studio-modal__visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-inline: 4px;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans-zh);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 14px;
+  cursor: pointer;
+}
+
+.admin-studio-modal__visibility-indicator {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: var(--color-background-elevated);
+  color: var(--color-text-on-primary);
+}
+
+.admin-studio-modal__visibility input:checked + .admin-studio-modal__visibility-indicator {
+  border-color: var(--color-fill-primary);
+  background: var(--color-fill-primary);
+}
+
+.admin-studio-modal__visibility input:focus-visible + .admin-studio-modal__visibility-indicator {
+  outline: 1px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+
+.admin-studio-modal__actions {
+  gap: 12px;
+  margin-top: 20px;
+  padding-inline: 4px;
+}
+
+.sf-button.admin-studio-modal__submit {
+  min-width: 108px;
+}
+
+.sf-button.admin-studio-modal__reset {
+  min-width: 96px;
+}
+
+@media (max-width: 639px) {
+  .admin-studio-modal {
+    padding: 16px;
+  }
+
+  .admin-studio-modal__cover-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-studio-modal__cover-uploader .sf-button {
+    width: 100%;
+  }
 }
