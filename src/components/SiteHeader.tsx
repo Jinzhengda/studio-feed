@@ -25,7 +25,7 @@ export default function SiteHeader() {
         <Link href="/" className="site-header-brand">
           StudioFeed
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="site-header-actions">
           <Suspense fallback={null}>
             <MobileFeedSearch />
           </Suspense>

@@ -450,12 +450,17 @@ export default function StudiosAdminPage() {
                     <p className="truncate">{studio.feed_url || "未设置抓取地址"}</p>
                     <p>{coverStatus(studio).label}</p>
                   </div>
-                  <div className="mt-4 flex gap-3">
-                    <Button variant="ghost" onClick={() => openEditForm(studio)}>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      className="admin-row-action"
+                      onClick={() => openEditForm(studio)}
+                    >
                       编辑
                     </Button>
                     <Button
                       variant="danger"
+                      className="admin-row-action admin-row-delete"
                       onClick={() => handleDelete(studio.id)}
                       loading={activeStudioId === studio.id}
                     >

@@ -166,11 +166,11 @@ export default function MasonryGrid({
     <div>
       <div
         ref={containerRef}
-        className="grid gap-6 sm:gap-7 lg:gap-8"
+        className="grid gap-x-6 gap-y-6"
         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
       >
         {columnWorks.map((columnItems, columnIndex) => (
-          <div key={columnIndex} className="flex flex-col gap-6 sm:gap-7 lg:gap-8">
+          <div key={columnIndex} className="flex flex-col gap-x-0 gap-y-8">
             {columnItems.map((work) => (
               <a
                 key={work.id}
@@ -259,11 +259,11 @@ function MasonrySkeleton({
 
   return (
     <div
-      className="mt-6 grid gap-6 sm:gap-7 lg:gap-8"
+      className="mt-6 grid gap-x-6 gap-y-6"
       style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
     >
       {columnItems.map((items, columnIndex) => (
-        <div key={columnIndex} className="flex flex-col gap-6 sm:gap-7 lg:gap-8">
+        <div key={columnIndex} className="flex flex-col gap-x-0 gap-y-8">
           {items.map((item) => (
             <div
               key={item}

@@ -70,7 +70,7 @@ export default function MobileFeedSearch() {
   if (isAuthed !== true) return null;
 
   return (
-    <div className="site-header-search order-3 mt-3 w-full md:order-none md:mt-0 md:w-[240px]">
+    <div className="site-header-search w-[240px]">
       <InputField
         inputType="search"
         aria-label="搜索作品或工作室"

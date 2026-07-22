@@ -191,13 +191,13 @@ export default function WorksAdminPage() {
                   {work.is_visible ? "可见" : "隐藏"}
                 </span>
               </div>
-              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-[var(--muted)]">
+              <div className="admin-mobile-card-footer mt-4 flex items-center justify-between gap-3 text-sm text-[var(--muted)]">
                 <span>
                   {work.published_at
                     ? new Date(work.published_at).toLocaleDateString()
                     : "未设置日期"}
                 </span>
-                <div className="flex gap-3">
+                <div className="admin-mobile-card-actions flex gap-2">
                   <Button
                     variant="ghost"
                     className="admin-row-action"

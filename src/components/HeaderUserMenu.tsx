@@ -81,7 +81,7 @@ export default function HeaderUserMenu() {
       <MobileMenu
         isAuthed={true}
         avatarUrl={avatarUrl}
-        showNavLinks={true}
+        onAvatarChange={(url) => setAvatarUrl(url)}
         showThemeToggle={true}
       />
     ) : (
@@ -99,7 +99,6 @@ export default function HeaderUserMenu() {
       <MobileMenu
         isAuthed={false}
         avatarUrl={null}
-        showNavLinks={true}
         showThemeToggle={true}
       />
     );
@@ -109,7 +108,7 @@ export default function HeaderUserMenu() {
     <MobileMenu
       isAuthed={true}
       avatarUrl={avatarUrl}
-      showNavLinks={true}
+      onAvatarChange={(url) => setAvatarUrl(url)}
       showThemeToggle={true}
     />
   );

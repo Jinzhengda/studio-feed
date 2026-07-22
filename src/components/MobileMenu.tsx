@@ -9,15 +9,14 @@ import {
   Image as ImageIcon,
   Images,
   LogOut,
-  Mail,
   Menu,
-  MessageCircleMore,
   Moon,
   ReceiptText,
   Sun,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import AvatarImage from "./AvatarImage";
+import ProfileSettingsModal from "./ProfileSettingsModal";
 import { applyTheme } from "./ThemeToggle";
 import {
   getCardMode,
@@ -34,19 +33,20 @@ const THEME_CHANGE_EVENT = "studio-feed-theme-change";
 export default function MobileMenu({
   isAuthed,
   avatarUrl,
-  showNavLinks = false,
   showThemeToggle = false,
+  onAvatarChange,
 }: {
   isAuthed: boolean;
   avatarUrl?: string | null;
-  showNavLinks?: boolean;
   showThemeToggle?: boolean;
+  onAvatarChange?: (url: string) => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const cardMode = useSyncExternalStore(
     subscribeCardMode,
     getCardMode,
@@ -127,13 +127,20 @@ export default function MobileMenu({
       </button>
 
       <div
-        className={`menu-panel absolute right-0 top-full z-50 mt-[12px] w-[248px] overflow-hidden rounded-none border border-[var(--color-border-card)] bg-[var(--bg)] shadow-lg transition-opacity ${
+        className={`menu-panel absolute right-0 top-full z-50 mt-1 w-[248px] overflow-hidden rounded-none border border-[var(--color-border-card)] bg-[var(--bg)] shadow-lg transition-opacity ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
         {isAuthed ? (
           <>
-            <Link href="/admin/profile" className="menu-row" onClick={() => setIsOpen(false)}>
+            <button
+              type="button"
+              className="menu-row w-full text-left"
+              onClick={() => {
+                setIsOpen(false);
+                setIsProfileOpen(true);
+              }}
+            >
               <span className="menu-label">编辑资料</span>
               {avatarUrl ? (
                 <AvatarImage
@@ -147,7 +154,7 @@ export default function MobileMenu({
                   U
                 </div>
               )}
-            </Link>
+            </button>
             <Link href="/admin/studios" className="menu-row" onClick={() => setIsOpen(false)}>
               <span className="menu-label">工作室管理</span>
               <StudioIcon />
@@ -156,18 +163,6 @@ export default function MobileMenu({
               <span className="menu-label">作品管理</span>
               <WorkIcon />
             </Link>
-            {showNavLinks && (
-              <>
-                <Link href="/about" className="menu-row" onClick={() => setIsOpen(false)}>
-                  <span className="menu-label">关于项目</span>
-                  <InfoIcon />
-                </Link>
-                <Link href="/contact" className="menu-row" onClick={() => setIsOpen(false)}>
-                  <span className="menu-label">联系作者</span>
-                  <MailIcon />
-                </Link>
-              </>
-            )}
             <button onClick={handleLogout} className="menu-row menu-row-logout w-full text-left">
               <span className="menu-label">登出</span>
               <LogoutIcon />
@@ -266,21 +261,16 @@ export default function MobileMenu({
               <span className="menu-label">登录</span>
               <LogoutIcon className="rotate-180" />
             </Link>
-            {showNavLinks && (
-              <>
-                <Link href="/about" className="menu-row" onClick={() => setIsOpen(false)}>
-                  <span className="menu-label">关于项目</span>
-                  <InfoIcon />
-                </Link>
-                <Link href="/contact" className="menu-row" onClick={() => setIsOpen(false)}>
-                  <span className="menu-label">联系作者</span>
-                  <MailIcon />
-                </Link>
-              </>
-            )}
           </>
         )}
       </div>
+
+      <ProfileSettingsModal
+        open={isProfileOpen}
+        avatarUrl={avatarUrl}
+        onClose={() => setIsProfileOpen(false)}
+        onAvatarChange={onAvatarChange}
+      />
     </div>
   );
 }
@@ -344,14 +334,6 @@ function StudioIcon() {
 
 function WorkIcon() {
   return <Images aria-hidden="true" size={24} strokeWidth={1} />;
-}
-
-function InfoIcon() {
-  return <MessageCircleMore aria-hidden="true" size={24} strokeWidth={1} />;
-}
-
-function MailIcon() {
-  return <Mail aria-hidden="true" size={24} strokeWidth={1} />;
 }
 
 function LogoutIcon({ className = "" }: { className?: string }) {

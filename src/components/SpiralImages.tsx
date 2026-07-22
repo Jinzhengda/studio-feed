@@ -12,8 +12,15 @@ type SpiralImagesProps = {
   speed?: number;
   spacing?: number;
   spread?: number;
+  mobileTurns?: number;
   sizeAttenuation?: number;
+  mobileSizeAttenuation?: number;
   imageSize?: number;
+  mobileSpacing?: number;
+  mobileSpread?: number;
+  mobileImageSize?: number;
+  mobileCornerRadius?: number;
+  mobileBreakpoint?: number;
   fadeIn?: number;
   fadeOut?: number;
   cornerRadius?: number;
@@ -38,8 +45,15 @@ export default function SpiralImages({
   speed = 2,
   spacing = 5,
   spread = 6,
+  mobileTurns,
   sizeAttenuation = 2,
+  mobileSizeAttenuation,
   imageSize = 200,
+  mobileSpacing,
+  mobileSpread,
+  mobileImageSize,
+  mobileCornerRadius,
+  mobileBreakpoint = 720,
   fadeIn = 20,
   fadeOut = 0,
   cornerRadius = 5,
@@ -78,10 +92,52 @@ export default function SpiralImages({
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let width = 0;
     let height = 0;
+    let activeTurns = turns;
+    const lookupSize = 1024;
+    let positionForArc = new Float32Array(lookupSize + 1);
+
+    const spiral = (position: number, radius: number) => {
+      const angle = position * activeTurns * TWO_PI;
+      const distance = radius * (1 - position);
+      return {
+        x: distance * Math.cos(angle),
+        y: -distance * Math.sin(angle),
+      };
+    };
+
+    // Equal arc-length lookup keeps the gap between cards visually uniform.
+    const rebuildArcLookup = () => {
+      const sampleCount = 2000;
+      const cumulative = new Float32Array(sampleCount + 1);
+      let previous = spiral(0, 1);
+      for (let index = 1; index <= sampleCount; index += 1) {
+        const point = spiral(index / sampleCount, 1);
+        const dx = point.x - previous.x;
+        const dy = point.y - previous.y;
+        cumulative[index] = cumulative[index - 1] + Math.sqrt(dx * dx + dy * dy);
+        previous = point;
+      }
+
+      const totalLength = cumulative[sampleCount] || 1;
+      const nextPositionForArc = new Float32Array(lookupSize + 1);
+      let sampleIndex = 0;
+      for (let arcIndex = 0; arcIndex <= lookupSize; arcIndex += 1) {
+        const target = (arcIndex / lookupSize) * totalLength;
+        while (sampleIndex < sampleCount && cumulative[sampleIndex + 1] < target) {
+          sampleIndex += 1;
+        }
+        const segment = cumulative[sampleIndex + 1] - cumulative[sampleIndex];
+        const fraction = segment > 0 ? (target - cumulative[sampleIndex]) / segment : 0;
+        nextPositionForArc[arcIndex] = (sampleIndex + fraction) / sampleCount;
+      }
+      positionForArc = nextPositionForArc;
+    };
 
     const resize = () => {
       width = container.clientWidth || 600;
       height = container.clientHeight || 600;
+      activeTurns = width <= mobileBreakpoint ? mobileTurns ?? turns : turns;
+      rebuildArcLookup();
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
@@ -91,41 +147,6 @@ export default function SpiralImages({
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(container);
-
-    const spiral = (position: number, radius: number) => {
-      const angle = position * turns * TWO_PI;
-      const distance = radius * (1 - position);
-      return {
-        x: distance * Math.cos(angle),
-        y: -distance * Math.sin(angle),
-      };
-    };
-
-    // Equal arc-length lookup keeps the gap between cards visually uniform.
-    const sampleCount = 2000;
-    const cumulative = new Float32Array(sampleCount + 1);
-    let previous = spiral(0, 1);
-    for (let index = 1; index <= sampleCount; index += 1) {
-      const point = spiral(index / sampleCount, 1);
-      const dx = point.x - previous.x;
-      const dy = point.y - previous.y;
-      cumulative[index] = cumulative[index - 1] + Math.sqrt(dx * dx + dy * dy);
-      previous = point;
-    }
-
-    const totalLength = cumulative[sampleCount] || 1;
-    const lookupSize = 1024;
-    const positionForArc = new Float32Array(lookupSize + 1);
-    let sampleIndex = 0;
-    for (let arcIndex = 0; arcIndex <= lookupSize; arcIndex += 1) {
-      const target = (arcIndex / lookupSize) * totalLength;
-      while (sampleIndex < sampleCount && cumulative[sampleIndex + 1] < target) {
-        sampleIndex += 1;
-      }
-      const segment = cumulative[sampleIndex + 1] - cumulative[sampleIndex];
-      const fraction = segment > 0 ? (target - cumulative[sampleIndex]) / segment : 0;
-      positionForArc[arcIndex] = (sampleIndex + fraction) / sampleCount;
-    }
 
     const arcToPosition = (arc: number) => {
       const value = Math.max(0, Math.min(lookupSize, arc * lookupSize));
@@ -163,11 +184,21 @@ export default function SpiralImages({
 
       const centerX = width / 2;
       const centerY = height / 2;
+      const isMobile = width <= mobileBreakpoint;
+      const activeSpacing = isMobile ? mobileSpacing ?? spacing : spacing;
+      const activeSpread = isMobile ? mobileSpread ?? spread : spread;
+      const activeImageSize = isMobile ? mobileImageSize ?? imageSize : imageSize;
+      const activeSizeAttenuation = isMobile
+        ? mobileSizeAttenuation ?? sizeAttenuation
+        : sizeAttenuation;
+      const activeCornerRadius = isMobile
+        ? mobileCornerRadius ?? cornerRadius
+        : cornerRadius;
       const radius =
-        0.48 * Math.min(width, height) * (1 + (spread - 1) * 0.18);
+        0.48 * Math.min(width, height) * (1 + (activeSpread - 1) * 0.18);
       const loadedImages = imgsRef.current;
       const imageCount = loadedImages.length || 1;
-      const step = Math.max(0.005, (spacing * 0.5) / 100);
+      const step = Math.max(0.005, (activeSpacing * 0.5) / 100);
       const slotCount = Math.min(400, Math.ceil(1 / step) + 2);
       const base = progressRef.current / 100;
       const cards: { path: number; position: number; image: number }[] = [];
@@ -193,8 +224,11 @@ export default function SpiralImages({
         if (opacity < 0.01) continue;
 
         const scale =
-          sizeAttenuation > 0
-            ? Math.pow(Math.min(distance / radius, 1), sizeAttenuation * 0.5)
+          activeSizeAttenuation > 0
+            ? Math.pow(
+                Math.min(distance / radius, 1),
+                activeSizeAttenuation * 0.5,
+              )
             : 1;
         const tangentPoint = spiral(Math.min(card.position + 0.001, 1), radius);
         const angle = Math.atan2(
@@ -204,15 +238,15 @@ export default function SpiralImages({
         const image = loadedImages[card.image];
         const ready = Boolean(image?.complete && image.naturalWidth > 0);
         const aspect = ready ? image!.naturalWidth / image!.naturalHeight : 1;
-        let cardWidth = imageSize * scale;
+        let cardWidth = activeImageSize * scale;
         let cardHeight = cardWidth / aspect;
         if (aspect < 1) {
-          cardHeight = imageSize * scale;
+          cardHeight = activeImageSize * scale;
           cardWidth = cardHeight * aspect;
         }
 
         const radiusPixels =
-          (cornerRadius / 20) * (Math.min(cardWidth, cardHeight) / 2);
+          (activeCornerRadius / 20) * (Math.min(cardWidth, cardHeight) / 2);
         context.save();
         context.translate(centerX + point.x, centerY + point.y);
         context.rotate(angle);
@@ -255,8 +289,15 @@ export default function SpiralImages({
     speed,
     spacing,
     spread,
+    mobileTurns,
     sizeAttenuation,
+    mobileSizeAttenuation,
     imageSize,
+    mobileSpacing,
+    mobileSpread,
+    mobileImageSize,
+    mobileCornerRadius,
+    mobileBreakpoint,
     fadeIn,
     fadeOut,
     cornerRadius,

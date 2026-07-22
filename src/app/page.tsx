@@ -120,7 +120,13 @@ export default async function HomePage() {
           spacing={4}
           spread={7}
           imageSize={160}
+          mobileTurns={4}
+          mobileSpacing={4}
+          mobileSpread={11}
+          mobileImageSize={143}
+          mobileCornerRadius={0}
           sizeAttenuation={2}
+          mobileSizeAttenuation={2.5}
           fadeIn={20}
           fadeOut={0}
           cornerRadius={0}
@@ -135,12 +141,9 @@ export default async function HomePage() {
             <br />
             inspiration workbench
           </h1>
-          <div className="mt-10 flex items-center justify-center gap-5">
+          <div className="mt-10 flex items-center justify-center">
             <Link href="/login" className="home-landing-primary">
               登录
-            </Link>
-            <Link href="/about" className="home-landing-secondary">
-              关于
             </Link>
           </div>
         </div>
