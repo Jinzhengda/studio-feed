@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import FloatingHeroGallery from "@/components/FloatingHeroGallery";
 import InputField from "@/components/InputField";
@@ -17,28 +17,12 @@ type LoginGalleryItem = {
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [emailEditable, setEmailEditable] = useState(false);
-  const [passwordEditable, setPasswordEditable] = useState(false);
   const [galleryItems, setGalleryItems] = useState<LoginGalleryItem[]>([]);
-
-  useEffect(() => {
-    function clearAutofill() {
-      if (emailRef.current) emailRef.current.value = "";
-      if (passwordRef.current) passwordRef.current.value = "";
-    }
-
-    clearAutofill();
-    const timer = window.setTimeout(clearAutofill, 100);
-
-    return () => window.clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -92,27 +76,24 @@ export default function LoginPage() {
             autoComplete="off"
           >
             <InputField
-              ref={emailRef}
               type="email"
               name="studio-feed-email"
-              autoComplete="off"
-              readOnly={!emailEditable}
+              autoComplete="username"
+              inputMode="email"
+              enterKeyHint="next"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onFocus={() => setEmailEditable(true)}
               placeholder="email"
               required
             />
 
             <InputField
-              ref={passwordRef}
               inputType="password"
               name="studio-feed-passcode"
-              autoComplete="new-password"
-              readOnly={!passwordEditable}
+              autoComplete="current-password"
+              enterKeyHint="go"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onFocus={() => setPasswordEditable(true)}
               placeholder="password"
               required
             />

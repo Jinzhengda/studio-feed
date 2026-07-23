@@ -1576,6 +1576,11 @@ b,
 }
 
 @media (max-width: 639px) {
+  .sf-input__native {
+    font-size: 16px;
+    touch-action: manipulation;
+  }
+
   .work-card-details {
     padding-top: 8px;
   }
@@ -1783,16 +1788,65 @@ b,
 }
 
 @media (max-width: 1023px) {
+  body:has(.login-page) {
+    overflow: hidden;
+  }
+
+  body:has(.login-page) > div {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  body:has(.login-page) main {
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .login-page {
+    height: 100%;
+    min-height: 0;
     grid-template-columns: 1fr;
+    overflow: hidden;
   }
+
   .login-form-panel {
-    min-height: 100vh;
-    min-height: 100dvh;
-    padding: 24px 20px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    padding:
+      max(20px, env(safe-area-inset-top))
+      20px
+      max(20px, env(safe-area-inset-bottom));
   }
+
+  .login-form-shell {
+    max-height: 100%;
+  }
+
   .login-visual-panel {
     display: none;
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 620px) {
+  .login-title {
+    font-size: 34px;
+    line-height: 40px;
+  }
+
+  .login-form {
+    gap: 12px;
+    padding-top: 24px;
+  }
+
+  .login-secondary-action {
+    height: 36px;
+    padding-top: 0;
+  }
+
+  .login-secondary-action a {
+    height: 36px;
   }
 }
 
