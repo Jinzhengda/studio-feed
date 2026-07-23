@@ -212,7 +212,7 @@ export default async function HomePage() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-6 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
+    <section className="mx-auto max-w-6xl px-4 py-0 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
       <MasonryGrid works={uniqueWorks} pageSize={HOME_PAGE_SIZE} />
     </section>
   );

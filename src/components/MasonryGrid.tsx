@@ -8,7 +8,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useSearchParams } from "next/navigation";
 import WorkImage from "./WorkImage";
 import {
   getCardMode,
@@ -20,6 +19,13 @@ import {
   getServerSearchQuery,
   subscribeSearchQuery,
 } from "@/lib/search-query";
+import {
+  getRandomSeed,
+  getServerRandomSeed,
+  getServerSortMode,
+  getSortMode,
+  subscribeSortMode,
+} from "@/lib/sort-mode";
 
 type Work = {
   id: string;
@@ -42,7 +48,6 @@ export default function MasonryGrid({
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadTriggerScrollYRef = useRef(-1000);
-  const searchParams = useSearchParams();
   const [works, setWorks] = useState(initialWorks);
   const [columns, setColumns] = useState(2);
   const [page, setPage] = useState(1);
@@ -53,8 +58,16 @@ export default function MasonryGrid({
     getSearchQuery,
     getServerSearchQuery,
   );
-  const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
-  const randomSeed = Number(searchParams.get("seed") || 0);
+  const sortMode = useSyncExternalStore(
+    subscribeSortMode,
+    getSortMode,
+    getServerSortMode,
+  );
+  const randomSeed = useSyncExternalStore(
+    subscribeSortMode,
+    getRandomSeed,
+    getServerRandomSeed,
+  );
   const cardMode = useSyncExternalStore(
     subscribeCardMode,
     getCardMode,
@@ -166,11 +179,11 @@ export default function MasonryGrid({
     <div>
       <div
         ref={containerRef}
-        className="grid gap-x-6 gap-y-6"
+        className="grid gap-x-4 gap-y-6 sm:gap-x-6"
         style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
       >
         {columnWorks.map((columnItems, columnIndex) => (
-          <div key={columnIndex} className="flex flex-col gap-x-0 gap-y-8">
+          <div key={columnIndex} className="flex flex-col gap-x-0 gap-y-4 sm:gap-y-8">
             {columnItems.map((work) => (
               <a
                 key={work.id}
@@ -259,11 +272,11 @@ function MasonrySkeleton({
 
   return (
     <div
-      className="mt-6 grid gap-x-6 gap-y-6"
+      className="mt-6 grid gap-x-4 gap-y-6 sm:gap-x-6"
       style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
     >
       {columnItems.map((items, columnIndex) => (
-        <div key={columnIndex} className="flex flex-col gap-x-0 gap-y-8">
+        <div key={columnIndex} className="flex flex-col gap-x-0 gap-y-4 sm:gap-y-8">
           {items.map((item) => (
             <div
               key={item}

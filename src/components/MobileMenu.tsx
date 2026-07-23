@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Archive,
   Contrast,
@@ -25,6 +25,13 @@ import {
   updateCardMode,
   type CardMode,
 } from "@/lib/card-mode";
+import {
+  getServerSortMode,
+  getSortMode,
+  subscribeSortMode,
+  updateSortMode,
+  type SortMode,
+} from "@/lib/sort-mode";
 
 type ThemeMode = "light" | "dark" | "system";
 const THEME_STORAGE_KEY = "studio-feed-theme-mode";
@@ -43,7 +50,6 @@ export default function MobileMenu({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -53,8 +59,12 @@ export default function MobileMenu({
     getServerCardMode,
   );
   const theme = useSyncExternalStore(subscribeThemeMode, getThemeMode, getServerThemeMode);
+  const sortMode = useSyncExternalStore(
+    subscribeSortMode,
+    getSortMode,
+    getServerSortMode,
+  );
   const menuRef = useRef<HTMLDivElement>(null);
-  const sortMode = searchParams.get("sort") === "random" ? "random" : "time";
 
   useEffect(() => {
     if (!avatarUrl) return;
@@ -84,21 +94,8 @@ export default function MobileMenu({
     router.push("/login");
   }
 
-  function chooseSortMode(nextMode: "time" | "random") {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (nextMode === "random") {
-      params.set("sort", "random");
-      params.set("seed", String(createRandomSeed()));
-    } else {
-      params.delete("sort");
-      params.delete("seed");
-    }
-
-    const queryString = params.toString();
-    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
-      scroll: false,
-    });
+  function chooseSortMode(nextMode: SortMode) {
+    updateSortMode(nextMode);
   }
 
   function chooseTheme(nextTheme: ThemeMode) {
@@ -207,6 +204,8 @@ export default function MobileMenu({
                             className={iconSegmentClass(theme === "light")}
                             onClick={() => chooseTheme("light")}
                             aria-label="浅色模式"
+                            aria-pressed={theme === "light"}
+                            title="浅色模式"
                           >
                             <SunIcon />
                           </button>
@@ -215,6 +214,8 @@ export default function MobileMenu({
                             className={iconSegmentClass(theme === "dark")}
                             onClick={() => chooseTheme("dark")}
                             aria-label="深色模式"
+                            aria-pressed={theme === "dark"}
+                            title="深色模式"
                           >
                             <MoonIcon />
                           </button>
@@ -223,6 +224,8 @@ export default function MobileMenu({
                             className={iconSegmentClass(theme === "system")}
                             onClick={() => chooseTheme("system")}
                             aria-label="跟随系统"
+                            aria-pressed={theme === "system"}
+                            title="跟随系统"
                           >
                             <SystemIcon />
                           </button>
@@ -233,17 +236,21 @@ export default function MobileMenu({
                         <SegmentedControl>
                           <button
                             type="button"
-                            className={iconSegmentClass(cardMode === "image")}
-                            onClick={() => chooseCardMode("image")}
-                            aria-label="图片卡片"
+                            className={iconSegmentClass(cardMode === "text")}
+                            onClick={() => chooseCardMode("text")}
+                            aria-label="纯图片卡片"
+                            aria-pressed={cardMode === "text"}
+                            title="纯图片卡片"
                           >
                             <ImageIcon aria-hidden="true" size={24} strokeWidth={1} />
                           </button>
                           <button
                             type="button"
-                            className={iconSegmentClass(cardMode === "text")}
-                            onClick={() => chooseCardMode("text")}
-                            aria-label="文字卡片"
+                            className={iconSegmentClass(cardMode === "image")}
+                            onClick={() => chooseCardMode("image")}
+                            aria-label="图文卡片"
+                            aria-pressed={cardMode === "image"}
+                            title="图文卡片"
                           >
                             <ReceiptText aria-hidden="true" size={24} strokeWidth={1} />
                           </button>
@@ -316,16 +323,6 @@ function subscribeThemeMode(callback: () => void) {
     window.removeEventListener("storage", callback);
     window.removeEventListener(THEME_CHANGE_EVENT, callback);
   };
-}
-
-function createRandomSeed() {
-  if (typeof window !== "undefined" && window.crypto) {
-    const values = new Uint32Array(1);
-    window.crypto.getRandomValues(values);
-    return values[0];
-  }
-
-  return Math.floor(Math.random() * 2 ** 32);
 }
 
 function StudioIcon() {
